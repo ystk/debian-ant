@@ -1,0 +1,84 @@
+From: Debian Java Maintainers <pkg-java-maintainers@lists.alioth.debian.org>
+Date: Thu, 11 Mar 2010 21:50:00 +0100
+Subject: [PATCH] detect classpath based JVM
+
+---
+ .../optional/native2ascii/KaffeNative2Ascii.java   |    1 +
+ .../native2ascii/Native2AsciiAdapterFactory.java   |    4 ++--
+ .../org/apache/tools/ant/util/JavaEnvUtils.java    |   14 ++++++++++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java
+index 7383f64..8c0a8e1 100644
+--- a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java
++++ b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java
+@@ -32,6 +32,7 @@ public final class KaffeNative2Ascii extends DefaultNative2Ascii {
+ 
+     // sorted by newest Kaffe version first
+     private static final String[] N2A_CLASSNAMES = new String[] {
++        "gnu.classpath.tools.native2ascii.Native2ASCII",
+         "gnu.classpath.tools.native2ascii.Native2Ascii",
+         // pre Kaffe 1.1.5
+         "kaffe.tools.native2ascii.Native2Ascii",
+diff --git a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java
+index e31c727..4ffcf43 100644
+--- a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java
++++ b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java
+@@ -40,7 +40,7 @@ public class Native2AsciiAdapterFactory {
+      * vendor
+      */
+     public static String getDefault() {
+-        if (JavaEnvUtils.isKaffe()) {
++        if (JavaEnvUtils.isKaffe() || JavaEnvUtils.isClasspathBased()) {
+             return KaffeNative2Ascii.IMPLEMENTATION_NAME;
+         }
+         return SunNative2Ascii.IMPLEMENTATION_NAME;
+@@ -79,7 +79,7 @@ public class Native2AsciiAdapterFactory {
+                                                  ProjectComponent log,
+                                                  Path classpath)
+         throws BuildException {
+-        if ((JavaEnvUtils.isKaffe() && choice == null)
++        if (((JavaEnvUtils.isKaffe() || JavaEnvUtils.isClasspathBased()) && choice == null)
+             || KaffeNative2Ascii.IMPLEMENTATION_NAME.equals(choice)) {
+             return new KaffeNative2Ascii();
+         } else if (SunNative2Ascii.IMPLEMENTATION_NAME.equals(choice)) {
+diff --git a/src/main/org/apache/tools/ant/util/JavaEnvUtils.java b/src/main/org/apache/tools/ant/util/JavaEnvUtils.java
+index 11e8dd7..fa2ce42 100644
+--- a/src/main/org/apache/tools/ant/util/JavaEnvUtils.java
++++ b/src/main/org/apache/tools/ant/util/JavaEnvUtils.java
+@@ -91,6 +91,9 @@ public final class JavaEnvUtils {
+ 
+     /** Whether this is the Kaffe VM */
+     private static boolean kaffeDetected;
++
++    /** Wheter this is a GNU Classpath based VM */
++    private static boolean classpathDetected;
+ 
+     /** array of packages in the runtime */
+     private static Vector jrePackages;
+@@ -138,6 +141,13 @@ public final class JavaEnvUtils {
+         } catch (Throwable t) {
+             // swallow as this simply doesn't seem to be Kaffe
+         }
++		classpathDetected = false;
++		try {
++		    Class.forName("gnu.classpath.Configuration");
++		    classpathDetected = true;
++		} catch (Throwable t) {
++	        // swallow as this simply doesn't seem to be GNU classpath based.
++		}
+     }
+ 
+     /**
+@@ -197,6 +207,10 @@ public final class JavaEnvUtils {
+     public static boolean isKaffe() {
+         return kaffeDetected;
+     }
++
++    public static boolean isClasspathBased() {
++        return classpathDetected;
++    }
+ 
+     /**
+      * Finds an executable that is part of a JRE installation based on
+-- 

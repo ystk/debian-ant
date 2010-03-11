@@ -1,0 +1,22 @@
+From: Debian Java Maintainers <pkg-java-maintainers@lists.alioth.debian.org>
+Date: Thu, 11 Mar 2010 21:50:13 +0100
+Subject: [PATCH] use ${build.classpath}
+
+---
+ build.xml |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/build.xml b/build.xml
+index 0c75880..6cf95b2 100644
+--- a/build.xml
++++ b/build.xml
+@@ -120,7 +120,7 @@
+        ===================================================================
+   -->
+   <path id="classpath">
+-    <fileset dir="lib/optional" includes="*.jar"/>
++    <pathelement path="${build.classpath}"/>
+   </path>
+ 
+   <path id="tests-classpath">
+-- 
