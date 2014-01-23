@@ -8,11 +8,11 @@ Subject: [PATCH] detect classpath based JVM
  .../org/apache/tools/ant/util/JavaEnvUtils.java    |   14 ++++++++++++++
  3 files changed, 17 insertions(+), 2 deletions(-)
 
-diff --git a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java
-index 7383f64..8c0a8e1 100644
---- a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java
-+++ b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java
-@@ -32,6 +32,7 @@ public final class KaffeNative2Ascii extends DefaultNative2Ascii {
+Index: apache-ant-1.8.2/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java
+===================================================================
+--- apache-ant-1.8.2.orig/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java	2010-12-20 18:48:16.000000000 +0000
++++ apache-ant-1.8.2/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/KaffeNative2Ascii.java	2011-05-04 15:19:49.235567112 +0100
+@@ -32,6 +32,7 @@
  
      // sorted by newest Kaffe version first
      private static final String[] N2A_CLASSNAMES = new String[] {
@@ -20,11 +20,11 @@ index 7383f64..8c0a8e1 100644
          "gnu.classpath.tools.native2ascii.Native2Ascii",
          // pre Kaffe 1.1.5
          "kaffe.tools.native2ascii.Native2Ascii",
-diff --git a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java
-index e31c727..4ffcf43 100644
---- a/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java
-+++ b/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java
-@@ -40,7 +40,7 @@ public class Native2AsciiAdapterFactory {
+Index: apache-ant-1.8.2/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java
+===================================================================
+--- apache-ant-1.8.2.orig/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java	2010-12-20 18:48:16.000000000 +0000
++++ apache-ant-1.8.2/src/main/org/apache/tools/ant/taskdefs/optional/native2ascii/Native2AsciiAdapterFactory.java	2011-05-04 15:19:49.235567112 +0100
+@@ -40,7 +40,7 @@
       * vendor
       */
      public static String getDefault() {
@@ -33,7 +33,7 @@ index e31c727..4ffcf43 100644
              return KaffeNative2Ascii.IMPLEMENTATION_NAME;
          }
          return SunNative2Ascii.IMPLEMENTATION_NAME;
-@@ -79,7 +79,7 @@ public class Native2AsciiAdapterFactory {
+@@ -79,7 +79,7 @@
                                                   ProjectComponent log,
                                                   Path classpath)
          throws BuildException {
@@ -42,23 +42,24 @@ index e31c727..4ffcf43 100644
              || KaffeNative2Ascii.IMPLEMENTATION_NAME.equals(choice)) {
              return new KaffeNative2Ascii();
          } else if (SunNative2Ascii.IMPLEMENTATION_NAME.equals(choice)) {
-diff --git a/src/main/org/apache/tools/ant/util/JavaEnvUtils.java b/src/main/org/apache/tools/ant/util/JavaEnvUtils.java
-index 11e8dd7..fa2ce42 100644
---- a/src/main/org/apache/tools/ant/util/JavaEnvUtils.java
-+++ b/src/main/org/apache/tools/ant/util/JavaEnvUtils.java
-@@ -91,6 +91,9 @@ public final class JavaEnvUtils {
+Index: apache-ant-1.8.2/src/main/org/apache/tools/ant/util/JavaEnvUtils.java
+===================================================================
+--- apache-ant-1.8.2.orig/src/main/org/apache/tools/ant/util/JavaEnvUtils.java	2010-12-20 18:48:17.000000000 +0000
++++ apache-ant-1.8.2/src/main/org/apache/tools/ant/util/JavaEnvUtils.java	2011-05-04 15:20:36.905590251 +0100
+@@ -96,6 +96,10 @@
  
      /** Whether this is the Kaffe VM */
      private static boolean kaffeDetected;
 +
 +    /** Wheter this is a GNU Classpath based VM */
 +    private static boolean classpathDetected;
++
+     /** Whether this is the GNU VM (gcj/gij) */
+     private static boolean gijDetected;
  
-     /** array of packages in the runtime */
-     private static Vector jrePackages;
-@@ -138,6 +141,13 @@ public final class JavaEnvUtils {
+@@ -165,6 +169,13 @@
          } catch (Throwable t) {
-             // swallow as this simply doesn't seem to be Kaffe
+             // swallow as this simply doesn't seem to be Apache Harmony
          }
 +		classpathDetected = false;
 +		try {
@@ -70,7 +71,7 @@ index 11e8dd7..fa2ce42 100644
      }
  
      /**
-@@ -197,6 +207,10 @@ public final class JavaEnvUtils {
+@@ -224,6 +235,10 @@
      public static boolean isKaffe() {
          return kaffeDetected;
      }
@@ -80,5 +81,4 @@ index 11e8dd7..fa2ce42 100644
 +    }
  
      /**
-      * Finds an executable that is part of a JRE installation based on
--- 
+      * Checks whether the current Java VM is the GNU interpreter gij

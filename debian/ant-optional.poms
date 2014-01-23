@@ -1,4 +1,3 @@
-src/etc/poms/ant-nodeps/pom.xml
 src/etc/poms/ant-antlr/pom.xml
 src/etc/poms/ant-apache-bcel/pom.xml
 src/etc/poms/ant-apache-bsf/pom.xml
@@ -15,5 +14,5 @@ src/etc/poms/ant-jmf/pom.xml
 src/etc/poms/ant-jsch/pom.xml
 src/etc/poms/ant-junit/pom.xml
 src/etc/poms/ant-swing/pom.xml
-src/etc/poms/ant-trax/pom.xml
+src/etc/poms/ant-testutil/pom.xml
 

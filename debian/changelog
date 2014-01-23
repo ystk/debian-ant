@@ -1,3 +1,64 @@
+ant (1.8.2-4) unstable; urgency=low
+
+  * Team upload.
+  * Provide ant-junit4.jar.
+
+ -- Miguel Landaeta <miguel@miguel.cc>  Tue, 13 Sep 2011 19:59:30 -0430
+
+ant (1.8.2-3) unstable; urgency=low
+
+  * Team upload.
+  * Fix FTBFS due to changes in libxml-commons-resolver1.1-java 1.2.
+    (Closes: #637592).
+  * Provide ant-testutil.jar. (Closes: #637593).
+
+ -- Miguel Landaeta <miguel@miguel.cc>  Fri, 12 Aug 2011 16:33:49 -0430
+
+ant (1.8.2-2) unstable; urgency=low
+
+  * Team upload.
+  * Skip javadoc building if we are not building architecture all
+    packages.  (Closes: #627110)
+
+ -- Niels Thykier <niels@thykier.net>  Thu, 19 May 2011 13:28:47 +0200
+
+ant (1.8.2-1) unstable; urgency=low
+
+  [ James Page ]
+  * New upstream release (Closes: #613914).
+    - Fix FTBFS for jug with ant 1.8.1 (Closes: #610320).
+  * Bumped Standards-Version to 3.9.2, no changes.
+  * Removed ant-nodeps.jar from install as now part of ant core. 
+  * Added myself to Uploaders.
+
+  [ Niels Thykier ]
+  * Added missing mh_clean, thanks to Miguel Landaeta for spotting
+    this.
+  * Fixed a typo in the ant manpage.
+  * Made short descriptions unique.
+  * Bumped debhelper compat to 7.
+  * Removed empty linda-override dir from ant-doc.
+  * Removed redundant Priority fields in d/control.
+
+ -- James Page <james.page@canonical.com>  Wed, 04 May 2011 15:16:42 +0100
+
+ant (1.8.1-1) experimental; urgency=low
+
+  [ Niels Thykier ]
+  * Replaced B-D on default-jdk-builddep with gcj-native-helper
+    and default-jdk.
+  * Bumped Standards-Versions to 3.9.0.
+    - Reduced a Conflicts to a Breaks.
+
+  [ Torsten Werner ]
+  * New upstream release
+  * Update or remove our patches.
+  * Do no longer install ant-stylebook.jar and ant-trax.jar because they are no
+    longer built.
+  * Remove Stefan from Uploaders list. Thanks to your contributions!
+
+ -- Torsten Werner <twerner@debian.org>  Thu, 05 Aug 2010 22:23:25 +0200
+
 ant (1.8.0-4) unstable; urgency=low
 
   * Convert patches to dep3 format.

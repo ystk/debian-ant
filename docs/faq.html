@@ -99,7 +99,7 @@
                                     <a href="./index.html">Welcome</a>
                                 </li>
                             <li>
-                                    <a href="./license.html">License</a>
+                                    <a href="http://www.apache.org/licenses/LICENSE-2.0.html">License</a>
                                 </li>
                             <li>
                                     <a href="./antnews.html">News</a>
@@ -139,6 +139,9 @@
                             <li>
                                     <a href="http://ant.apache.org/srcdownload.cgi">Source Distributions</a>
                                 </li>
+                            <li>
+                                    <a href="http://ant.apache.org/manualdownload.cgi">Ant Manual</a>
+                                </li>
                       </ul>
         </li>
               <li class="menuheader">Contributing
@@ -155,6 +158,9 @@
                             <li>
                                     <a href="./bugs.html">Bug Database</a>
                                 </li>
+                            <li>
+                                    <a href="http://www.apache.org/security/">Security</a>
+                                </li>
                       </ul>
         </li>
               <li class="menuheader">Sponsorship
@@ -164,9 +170,6 @@
                                 </li>
                             <li>
                                     <a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
-                                </li>
-                            <li>
-                                    <a href="http://www.apache.org/foundation/contributing.html">Donations</a>
                                 </li>
                       </ul>
         </li>
@@ -230,7 +233,7 @@
         <ul>
                 <li><a href="#java-version">
   Which version of Java is required to run
-        Ant?
+        Apache Ant?
       </a></li>
                 <li><a href="#no-gnu-tar">
   I get checksum errors when I try to extract the
@@ -361,10 +364,10 @@
         Windows.
       </a></li>
             </ul>
-                <h4 class="toc">Ant and IDEs/Editors</h4>
+                <h4 class="toc">Apache Ant and IDEs/Editors</h4>
         <ul>
                 <li><a href="#integration">
-  Is Ant supported by my IDE/Editor?
+  Is Apache Ant supported by my IDE/Editor?
       </a></li>
                 <li><a href="#emacs-mode">
   Why doesn't (X)Emacs/vi/MacOS X's project builder
@@ -408,9 +411,6 @@
   &lt;chmod&gt; or &lt;exec&gt; doesn't work in Ant
         1.3 on Unix
       </a></li>
-                <li><a href="#javadoc-cannot-execute">
-  JavaDoc failed: java.io.IOException: javadoc: cannot execute
-      </a></li>
                 <li><a href="#delegating-classloader">
   &lt;style&gt; or &lt;junit&gt; ignores my
       &lt;classpath&gt;
@@ -423,49 +423,22 @@
   &lt;style&gt; or &lt;junit&gt; ignores my
       &lt;classpath&gt; - Ant 1.6.x version
       </a></li>
-                <li><a href="#winxp-jdk14-ant14">
-  When running Ant 1.4 on Windows XP and JDK 1.4, I get
-      various errors when trying to <code>&lt;exec&gt;</code>, fork
-      <code>&lt;java&gt;</code> or access environment
-      variables.
-      </a></li>
-                <li><a href="#1.5-cygwin-sh">
-  The <code>ant</code> wrapper script of Ant 1.5 fails
-      for Cygwin if <code>ANT_HOME</code> is set to a Windows style
-      path.
-      </a></li>
-                <li><a href="#1.5.2-zip-broken">
-  <code>&lt;zip&gt;</code> is broken in Ant 1.5.2.
-      </a></li>
                 <li><a href="#unknownelement.taskcontainer">
   
         Why do my custom task containers see Unknown Elements in Ant 1.6
         - they worked in Ant 1.5?
       
       </a></li>
-                <li><a href="#java.exception.stacktrace">
-  
-        The program I run via &lt;java&gt; throws an exception but I
-        can't seem to get the full stack trace.
-      
-      </a></li>
-                <li><a href="#junit-no-runtime-xml">
-  
-        Using format="xml", &lt;junit&gt; fails with a
-        <code>NoClassDefFoundError</code> if forked.
-      
-      </a></li>
-                <li><a href="#xalan-jdk1.5">
-  
-        <code>&lt;junitreport&gt;</code> doesn't work with JDK 1.5 but
-        worked fine with JDK 1.4.
-      
-      </a></li>
                 <li><a href="#oom-on-mac">
   
-        Ant runs into an infinite loop/throws an OutOufMemoryError
+        Ant runs into an infinite loop/throws an OutOfMemoryError
         when I compile my project under Mac OS X.
       
+      </a></li>
+                <li><a href="#extension-point-and-import">
+  <code>extension-point</code> doesn't work
+        with <code>import</code> like the documentation
+        states.
       </a></li>
             </ul>
     
@@ -475,7 +448,7 @@
       Where do I find the latest version of this
         document?
     </p>
-                  <p>The latest version can always be found at Ant's homepage
+                  <p>The latest version can always be found at Apache Ant's homepage
           <a href="http://ant.apache.org/faq.html">http://ant.apache.org/faq.html</a>.</p>
                     <p class="faq">
       <a name="adding-faqs"></a>
@@ -502,11 +475,11 @@
         Ant's SVN repository - the build file
         <code>docs.xml</code> at the top level of the ant SVN
         module (trunk) is used to drive Anakia.</p>
-                        <p>This file assumes that you have the
-        <code>jakarta-site2</code> CVS module checked out as well, but
-        if you follow the instruction from Anakia's homepage, you
-        should get it to work without that.  Just make sure all
-        required jars are in the task's classpath.</p>
+                        <p>To transform the xml into html, one needs velocity 1.4.
+        The command to run is :</p>
+                        <p>
+        <code>ant -Dvelocity.dir=[installation path of velocity] -f docs.xml</code>
+        </p>
                                 <p class="faq">
       <a name="what-is-ant"></a>
       What is Apache Ant?
@@ -751,13 +724,33 @@
           8 February 2010
       </td>
       </tr>
+                  <tr>
+                      <td colspan="1" rowspan="1"
+      valign="top" align="left">
+          1.8.1
+      </td>
+                          <td colspan="1" rowspan="1"
+      valign="top" align="left">
+          7 May 2010
+      </td>
+      </tr>
+                  <tr>
+                      <td colspan="1" rowspan="1"
+      valign="top" align="left">
+          1.8.2
+      </td>
+                          <td colspan="1" rowspan="1"
+      valign="top" align="left">
+          27 December 2010
+      </td>
+      </tr>
           </table>
                                 <p class="faq">
       <a name="java-version"></a>
       Which version of Java is required to run
-        Ant?
+        Apache Ant?
     </p>
-                  <p>You will need Java installed on your system, version 1.3 or
+                  <p>You will need Java installed on your system, version 1.4 or
           later required, 1.5 or later strongly recommended. The later
           the version of Java, the more Ant tasks you get.</p>
                         <p>If only the JRE is present but not a full JDK then many
@@ -810,7 +803,7 @@
                   <tr>
                       <td colspan="1" rowspan="1"
       valign="top" align="left">
-          current svn trunk
+          1.8.0 up to current svn trunk
       </td>
                           <td colspan="1" rowspan="1"
       valign="top" align="left">
@@ -862,7 +855,7 @@ Apache Ant version 1.6.2 compiled on July 16 2004
       <a name="precompile-jsps"></a>
       How to I precompile Java Server Pages (JSPs)?
     </p>
-                  <p>Ant has a built in optional task <a href="/manual/OptionalTasks/jspc.html">&lt;jspc&gt;</a>
+                  <p>Apache Ant has a built in optional task <a href="/manual/Tasks/jspc.html">&lt;jspc&gt;</a>
         which was intended for that. <b>But this task is deprecated.</b>
         Here the alternative suggested by the manual:</p>
                         <p><i>Instead of relying on container specific JSP-compilers we suggest deploying
@@ -1189,7 +1182,7 @@ shell-prompt&gt; m4 foo.m4 &gt; foo
         course, comes with the overhead of adding JAR files to support
         the language, to say nothing of the added maintenance in requiring
         two languages to implement a single system. See the
-        <a href="manual/OptionalTasks/script.html">
+        <a href="manual/Tasks/script.html">
         <code>&lt;script&gt;</code> task documentation</a> for more
         details.</p>
                     <p class="faq">
@@ -1293,7 +1286,7 @@ shell-prompt&gt; m4 foo.m4 &gt; foo
       <a name="general-advice"></a>
       General Advice
     </p>
-                  <p>There are many reasons why Ant doesn't behave as
+                  <p>There are many reasons why Apache Ant doesn't behave as
         expected, not all of them are due to Ant bugs.  See our <a href="problems.html">Having Problems?</a> page for hints that
         may help pinning down the reasons for your problem.</p>
                     <p class="faq">
@@ -1487,7 +1480,7 @@ shell-prompt&gt; m4 foo.m4 &gt; foo
     </p>
                   <p>
           Ant implements the Java
-          <a href="http://java.sun.com/j2se/1.4.2/docs/guide/jar/jar.html">Jar
+          <a href="http://download.oracle.com/javase/1.4.2/docs/guide/jar/jar.html">Jar
           file specification</a>. Please refer to the notes section where it
           discusses the maximum allowable length of a line and the concept of
           continuation characters.
@@ -1524,7 +1517,7 @@ shell-prompt&gt; m4 foo.m4 &gt; foo
           your buildfile.</p>
                                 <p class="faq">
       <a name="integration"></a>
-      Is Ant supported by my IDE/Editor?
+      Is Apache Ant supported by my IDE/Editor?
     </p>
                   <p>See the <a href="external.html#IDE and Editor Integration">section
         on IDE integration</a> on our External Tools and Tasks page.</p>
@@ -1602,7 +1595,7 @@ while(&lt;STDIN&gt;) {
             <a href="http://www.sdv.fr/pages/casa/html/ant-dtd.en.html">this
             page</a> by Michel Casabianca for a solution to this
             problem.  Note that the DTD you can download at this page
-            is based on Ant 0.3.1.</li>
+            is based on Apache Ant 0.3.1.</li>
 
             <li>It may even be an invalid DTD.  As Ant allows tasks
             writers to define arbitrary elements, name collisions will
@@ -1689,7 +1682,7 @@ while(&lt;STDIN&gt;) {
         BuildListener that sends out an email
         in the buildFinished() method.  Will Glozer
         &lt;will.glozer@jda.com&gt; has written such a listener based
-        on <a href="http://java.sun.com/products/javamail/">JavaMail</a>.
+        on <a href="http://www.oracle.com/technetwork/java/index-jsp-139225.html">JavaMail</a>.
         The source is:</p>
                         <pre class="code">
 import java.io.*;
@@ -1828,7 +1821,7 @@ ant -listener BuildMonitor -logfile build.log
 </pre>
                         <p>Make sure that <code>mail.jar</code> from JavaMail and
         <code>activation.jar</code> from the
-        <a href="http://java.sun.com/products/javabeans/glasgow/jaf.html">Java
+        <a href="http://www.oracle.com/technetwork/java/javase/jaf-135115.html">Java
         Beans Activation Framework</a> are in your <code>CLASSPATH</code>.</p>
                     <p class="faq">
       <a name="listener-properties"></a>
@@ -1854,7 +1847,7 @@ public void buildFinished(BuildEvent e) {
         or leads to strange behaviour of <code>&lt;input&gt;</code>
         tasks.
     </p>
-                  <p>When Ant forks a new process for example by using the
+                  <p>When Apache Ant forks a new process for example by using the
           <code>&lt;exec&gt;</code>, <code>&lt;apply&gt;</code>
           or <code>&lt;java&gt;</code> tasks, it will also start a
           new thread reading from standard input and sending
@@ -1924,14 +1917,6 @@ tr -d '\r' &lt; $ANT_HOME/bin/antRun &gt; /tmp/foo
 mv /tmp/foo $ANT_HOME/bin/antRun
 </pre>
                     <p class="faq">
-      <a name="javadoc-cannot-execute"></a>
-      JavaDoc failed: java.io.IOException: javadoc: cannot execute
-    </p>
-                  <p>There is a bug in the Solaris reference implementation of
-        the JDK (see <a href="http://developer.java.sun.com/developer/bugParade/bugs/4230399.html">http://developer.java.sun.com/developer/bugParade/bugs/4230399.html</a>).
-        This also appears to be true under Linux. Moving the JDK to
-        the front of the PATH fixes the problem.</p>
-                    <p class="faq">
       <a name="delegating-classloader"></a>
       &lt;style&gt; or &lt;junit&gt; ignores my
       &lt;classpath&gt;
@@ -1966,7 +1951,7 @@ mv /tmp/foo $ANT_HOME/bin/antRun
         requires you to have <code>junit.jar</code> in Ant's startup
         classpath even if <code>ant-junit.jar</code> is present there.</p>
                         <p>Ant's class loader implementation uses Java's
-        delegation model, see <a href="http://java.sun.com/products/jdk/1.2/docs/api/java/lang/ClassLoader.html">http://java.sun.com/products/jdk/1.2/docs/api/java/lang/ClassLoader.html</a>
+        delegation model, see <a href="http://download.oracle.com/javase/6/docs/api/java/lang/ClassLoader.html">http://download.oracle.com/javase/6/docs/api/java/lang/ClassLoader.html</a>
         the paragraph</p>
                         <blockquote>The <code>ClassLoader</code> class uses a
         delegation model to search for classes and resources. Each
@@ -2114,10 +2099,7 @@ mv /tmp/foo $ANT_HOME/bin/antRun
         dependencies on external libraries.  You can move the
         "offending" jar out of <code>ANT_HOME/lib</code>.  For the
         <code>&lt;junit&gt;</code> task it would be
-        <code>ant-junit.jar</code> and for <code>&lt;style&gt;</code>
-        it would be <code>ant-trax.jar</code>
-        or <code>ant-xslp.jar</code> - 
-        depending on the processor you use.</p>
+        <code>ant-junit.jar</code>.</p>
                         <p>If you do so, you will have to <code>&lt;taskdef&gt;</code>
         all optional tasks that need the external library and use
         nested <code>&lt;classpath&gt;</code> elements in the
@@ -2137,48 +2119,6 @@ mv /tmp/foo $ANT_HOME/bin/antRun
       &lt;/classpath&gt;
     &lt;/taskdef&gt;
 </pre>
-                    <p class="faq">
-      <a name="winxp-jdk14-ant14"></a>
-      When running Ant 1.4 on Windows XP and JDK 1.4, I get
-      various errors when trying to <code>&lt;exec&gt;</code>, fork
-      <code>&lt;java&gt;</code> or access environment
-      variables.
-    </p>
-                  <p>Ant &lt; 1.5 doesn't recognize Windows XP as a flavor
-        of Windows that runs <code>CMD.EXE</code> instead of
-        <code>COMMAND.COM</code>.  JDK 1.3 will tell Ant that Windows
-        XP is Windows 2000 so the problem doesn't show up
-        there.</p>
-                        <p>Apart from upgrading to Ant 1.5 or better, setting the
-        environment variable <code>ANT_OPTS</code> to
-        <code>-Dos.name=Windows_NT</code> prior to invoking Ant has
-        been confirmed as a workaround.</p>
-                    <p class="faq">
-      <a name="1.5-cygwin-sh"></a>
-      The <code>ant</code> wrapper script of Ant 1.5 fails
-      for Cygwin if <code>ANT_HOME</code> is set to a Windows style
-      path.
-    </p>
-                  <p>This problem has been reported only hours after Ant 1.5 has
-        been released, see <a href="http://issues.apache.org/bugzilla/show_bug.cgi?id=10664">Bug
-        10664</a> and all its duplicates.</p>
-                        <p>A fixed version of the wrapper script can be found <a href="http://ant.apache.org/old-releases/v1.5/errata/">here</a>.
-        Simply replace your script with this version.</p>
-                    <p class="faq">
-      <a name="1.5.2-zip-broken"></a>
-      <code>&lt;zip&gt;</code> is broken in Ant 1.5.2.
-    </p>
-                  <p>Yes, it is.</p>
-                        <p>The problem reported by most people - see <a href="http://issues.apache.org/bugzilla/show_bug.cgi?id=17648">Bug
-        17648</a> and all its duplicates - is that Ant creates
-        archives that a partially unreadable by WinZIP.  Luckily
-        <code>jar</code> deals with the archives and so the generated
-        jars/wars/ears will most likely work for you anyway.</p>
-                        <p>There are additional problems, see bugs <a href="http://issues.apache.org/bugzilla/show_bug.cgi?id=17780">Bug
-        17780</a>, <a href="http://issues.apache.org/bugzilla/show_bug.cgi?id=17871">Bug
-        17871</a> and <a href="http://issues.apache.org/bugzilla/show_bug.cgi?id=18403">Bug
-        18403</a>.  All of them are supposed to be fixed with Ant
-        1.5.3 (and only 18403 should exist in 1.5.3beta1).</p>
                     <p class="faq">
       <a name="unknownelement.taskcontainer"></a>
       
@@ -2229,61 +2169,9 @@ mv /tmp/foo $ANT_HOME/bin/antRun
           This approach should work for ant1.5 and ant1.6.
         </p>
                     <p class="faq">
-      <a name="java.exception.stacktrace"></a>
-      
-        The program I run via &lt;java&gt; throws an exception but I
-        can't seem to get the full stack trace.
-      
-    </p>
-                  <p>This is a know bug that has been fixed after the release of
-        Ant 1.6.1.</p>
-                        <p>As a workaround, run your &lt;java&gt; task with
-        <code>fork="true"</code> and Ant will display the full
-        trace.</p>
-                    <p class="faq">
-      <a name="junit-no-runtime-xml"></a>
-      
-        Using format="xml", &lt;junit&gt; fails with a
-        <code>NoClassDefFoundError</code> if forked.
-      
-    </p>
-                  <p>The XML formatter needs the <a href="http://www.w3.org/DOM/">DOM classes</a> to work.  If you
-        are using JDK 1.4 or later they are included with your Java
-        Runtime and this problem won't occur.  If you are running JDK
-        1.3 or earlier, the DOM classes have to be on your
-        &lt;junit&gt; task's &lt;classpath&gt;.</p>
-                        <p>Prior to Ant 1.6.0 Ant would include the DOM classes from
-        the XML parser that is used by Ant itself if you set the
-        includeAntRuntime attribute to true (the default).  With Ant
-        1.6.0 this has been changed as this behavior made it
-        impossible to use a different XML parser in your tests.</p>
-                        <p>This means that you have to take care of the DOM classes
-        explicitly starting with Ant 1.6.0.  If you don't need to set
-        up a different XML parser for your tests, the easiest solution
-        is to add</p>
-                        <pre class="code">
-&lt;pathelement path=&quot;${ant.home}/lib/xml-apis.jar:${ant.home}/lib/xercesImpl.jar&quot;/&gt;
-</pre>
-                        <p>to your task's &lt;classpath&gt;.</p>
-                    <p class="faq">
-      <a name="xalan-jdk1.5"></a>
-      
-        <code>&lt;junitreport&gt;</code> doesn't work with JDK 1.5 but
-        worked fine with JDK 1.4.
-      
-    </p>
-                  <p>While JDK 1.4.x contains a version of Xalan-J 2, JDK 1.5
-        (and later?) have <a href="http://java.sun.com/j2se/1.5.0/compatibility.html#4959783">moved
-        to XSLTC</a>.  Since this task uses Xalan's redirect
-        extensions for its internal stylesheet, Ant prior to 1.6.2 didn't support
-        XSLTC.  This means that you have to install <a href="http://xml.apache.org/xalan-j/">Xalan-J 2</a> in order
-        to use this task with JDK 1.5 in older versions of Ant.</p>
-                        <p>Starting with Ant 1.6.2 <code>&lt;junitreport&gt;</code>
-        supports JDK 1.5.</p>
-                    <p class="faq">
       <a name="oom-on-mac"></a>
       
-        Ant runs into an infinite loop/throws an OutOufMemoryError
+        Ant runs into an infinite loop/throws an OutOfMemoryError
         when I compile my project under Mac OS X.
       
     </p>
@@ -2324,10 +2212,54 @@ mv /tmp/foo $ANT_HOME/bin/antRun
         there is another symlink <code>bundle</code> that points to
         the <code>Home</code> directory and will cause infite
         recursions as well.</p>
+                    <p class="faq">
+      <a name="extension-point-and-import"></a>
+      <code>extension-point</code> doesn't work
+        with <code>import</code> like the documentation
+        states.
+    </p>
+                  <p>Yes, there is
+          a <a href="https://issues.apache.org/bugzilla/show_bug.cgi?id=48804">bug
+          in Ant 1.8.0</a>.</p>
+                        <p>When using two build files like</p>
+                        <pre class="code">
+importing.xml:
+&lt;project&gt;
+   ...
+   &lt;import file=&quot;imported.xml&quot;/&gt;
+   &lt;target name=&quot;bar&quot; extensionOf=&quot;foo&quot;/&gt;
+&lt;/project&gt;
+imported.xml:
+&lt;project&gt;
+   &lt;extension-point name=&quot;foo&quot;/&gt;
+&lt;/project&gt;
+</pre>
+                        <p>Ant 1.8.0 will fail, claiming there was no extension point
+          named "foo".</p>
+                        <p>This bug has been fixed for Ant 1.8.1.  For Ant 1.8.0 there
+          is
+          a <a href="https://issues.apache.org/bugzilla/show_bug.cgi?id=48804#c9">work-around</a>:
+          add an additional layer of importing like in</p>
+                        <pre class="code">
+importing.xml:
+&lt;project&gt;
+   &lt;target name=&quot;bar&quot; extensionOf=&quot;foo&quot;/&gt;
+&lt;/project&gt;
+imported.xml:
+&lt;project&gt;
+   &lt;extension-point name=&quot;foo&quot;/&gt;
+&lt;/project&gt;
+build.xml:
+&lt;project&gt;
+   &lt;import file=&quot;imported.xml&quot;/&gt;
+   &lt;import file=&quot;importing.xml&quot;/&gt;
+&lt;/project&gt;
+</pre>
                     </div>
   </div>
 
         <p class="copyright">
+      Apache Ant, Apache Ivy, Ant, Ivy, Apache, the Apache feather logo, and the Apache Ant project logos are trademarks of The Apache Software Foundation.
         <script type="text/javascript" language="JavaScript"><!--
                 document.write(" - "+"Last Published: " + document.lastModified);
               //  -->

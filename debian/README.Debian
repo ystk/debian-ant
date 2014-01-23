@@ -27,7 +27,6 @@ Ant 1.8 for Debian
 
   ant-xalan1        -- you can use ant-xalan2 with libxalan2-java instead
   ant-xslp
-  ant-stylebook
   ant-icontract
   ant-netrexx
   ant-starteam

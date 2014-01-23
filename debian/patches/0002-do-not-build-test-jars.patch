@@ -1,0 +1,21 @@
+From: Debian Java Maintainers <pkg-java-maintainers@lists.alioth.debian.org>
+Date: Thu, 11 Mar 2010 21:50:05 +0100
+Subject: [PATCH] do not build test jars
+
+---
+ build.xml |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+Index: apache-ant-1.8.2/build.xml
+===================================================================
+--- apache-ant-1.8.2.orig/build.xml	2011-05-04 15:32:03.355912171 +0100
++++ apache-ant-1.8.2/build.xml	2011-05-04 15:32:09.565914993 +0100
+@@ -791,7 +791,7 @@
+        ===================================================================
+   -->
+   <target name="dist-lite"
+-    depends="jars,test-jar"
++    depends="jars"
+     description="--> creates a minimum distribution to run Apache Ant">
+ 
+     <mkdir dir="${dist.dir}"/>

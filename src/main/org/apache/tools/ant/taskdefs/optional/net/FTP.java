@@ -32,10 +32,12 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -54,6 +56,7 @@ import org.apache.tools.ant.types.selectors.SelectorUtils;
 import org.apache.tools.ant.util.FileUtils;
 import org.apache.tools.ant.util.RetryHandler;
 import org.apache.tools.ant.util.Retryable;
+import org.apache.tools.ant.util.VectorSet;
 
 /**
  * Basic FTP client. Performs the following actions:
@@ -116,7 +119,7 @@ public class FTP extends Task implements FTPTaskConfig {
     private boolean timeDiffAuto = false;
     private int action = SEND_FILES;
     private Vector filesets = new Vector();
-    private Vector dirCache = new Vector();
+    private Set dirCache = new HashSet();
     private int transferred = 0;
     private String remoteFileSep = "/";
     private int port = DEFAULT_FTP_PORT;
@@ -354,12 +357,12 @@ public class FTP extends Task implements FTPTaskConfig {
                 excludes = new String[0];
             }
 
-            filesIncluded = new Vector();
+            filesIncluded = new VectorSet();
             filesNotIncluded = new Vector();
-            filesExcluded = new Vector();
-            dirsIncluded = new Vector();
+            filesExcluded = new VectorSet();
+            dirsIncluded = new VectorSet();
             dirsNotIncluded = new Vector();
-            dirsExcluded = new Vector();
+            dirsExcluded = new VectorSet();
 
             try {
                 String cwd = ftp.printWorkingDirectory();
@@ -831,7 +834,7 @@ public class FTP extends Task implements FTPTaskConfig {
                         } else if (!result) {
                             return;
                         }
-                        this.curpwd = this.curpwd + remoteFileSep
+                        this.curpwd = getCurpwdPlusFileSep()
                             + currentPathElement;
                     } catch (IOException ioe) {
                         throw new BuildException("could not change working dir to "
@@ -892,7 +895,7 @@ public class FTP extends Task implements FTPTaskConfig {
              * @return absolute path as string
              */
             public String getAbsolutePath() {
-                return curpwd + remoteFileSep + ftpFile.getName();
+                return getCurpwdPlusFileSep() + ftpFile.getName();
             }
             /**
              * find out the relative path assuming that the path used to construct
@@ -1032,6 +1035,17 @@ public class FTP extends Task implements FTPTaskConfig {
              */
             public String getCurpwd() {
                 return curpwd;
+            }
+            /**
+             * returns the path of the directory containing the AntFTPFile.
+             * of the full path of the file itself in case of AntFTPRootFile
+             * and appends the remote file separator if necessary.
+             * @return parent directory of the AntFTPFile
+             * @since Ant 1.8.2
+             */
+            public String getCurpwdPlusFileSep() {
+                return curpwd.endsWith(remoteFileSep) ? curpwd
+                    : curpwd + remoteFileSep;
             }
             /**
              * find out if a symbolic link is encountered in the relative path of this file
@@ -1919,7 +1933,7 @@ public class FTP extends Task implements FTPTaskConfig {
                                                  + "directory: " + ftp.getReplyString());
                     }
                 }
-                dirCache.addElement(dir);
+                dirCache.add(dir);
             }
             ftp.changeWorkingDirectory(cwd);
         }
@@ -2088,7 +2102,7 @@ public class FTP extends Task implements FTPTaskConfig {
             myReply = ftp.getReplyStrings();
 
             for (int x = 0; x < myReply.length; x++) {
-                if (myReply[x].indexOf("200") == -1) {
+                if (myReply[x] != null && myReply[x].indexOf("200") == -1) {
                     log(myReply[x], Project.MSG_WARN);
                 }
             }
@@ -2565,8 +2579,7 @@ public class FTP extends Task implements FTPTaskConfig {
          * @return the SYMBOL representing the given action.
          */
         public int getAction() {
-            String actionL = getValue().toLowerCase(Locale.US);
-
+            String actionL = getValue().toLowerCase(Locale.ENGLISH);
             if (actionL.equals("send") || actionL.equals("put")) {
                 return SEND_FILES;
             } else if (actionL.equals("recv") || actionL.equals("get")) {
@@ -2624,8 +2637,7 @@ public class FTP extends Task implements FTPTaskConfig {
          * the attribute, in the context of the supplied action
          */
         public long getMilliseconds(int action) {
-            String granularityU = getValue().toUpperCase(Locale.US);
-
+            String granularityU = getValue().toUpperCase(Locale.ENGLISH);
             if ("".equals(granularityU)) {
                 if (action == SEND_FILES) {
                     return GRANULARITY_MINUTE;

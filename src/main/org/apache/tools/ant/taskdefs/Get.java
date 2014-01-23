@@ -29,9 +29,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
@@ -658,7 +656,12 @@ public class Get extends Task {
                         .setUseCaches(httpUseCaches);
             }
             // connect to the remote site (may take some time)
-            connection.connect();
+            try {
+                connection.connect();
+            } catch (NullPointerException e) {
+                //bad URLs can trigger NPEs in some JVMs
+                throw new BuildException("Failed to parse " + source.toString(), e);
+            }
 
             // First check on a 301 / 302 (moved) response (HTTP only)
             if (connection instanceof HttpURLConnection) {
@@ -673,7 +676,7 @@ public class Get extends Task {
                             + (responseCode == HttpURLConnection.HTTP_MOVED_PERM ? " permanently"
                                     : "") + " moved to " + newLocation;
                     log(message, logLevel);
-                    URL newURL = new URL(newLocation);
+                    URL newURL = new URL(aSource, newLocation);
                     if (!redirectionAllowed(aSource, newURL))
                     {
                         return null;

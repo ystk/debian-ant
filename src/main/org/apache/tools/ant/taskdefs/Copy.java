@@ -46,6 +46,7 @@ import org.apache.tools.ant.types.resources.FileResource;
 import org.apache.tools.ant.util.FileUtils;
 import org.apache.tools.ant.util.FileNameMapper;
 import org.apache.tools.ant.util.IdentityMapper;
+import org.apache.tools.ant.util.LinkedHashtable;
 import org.apache.tools.ant.util.ResourceUtils;
 import org.apache.tools.ant.util.SourceFileScanner;
 import org.apache.tools.ant.util.FlatFileNameMapper;
@@ -66,6 +67,9 @@ import org.apache.tools.ant.util.FlatFileNameMapper;
  * @ant.task category="filesystem"
  */
 public class Copy extends Task {
+    private static final String MSG_WHEN_COPYING_EMPTY_RC_TO_FILE =
+        "Cannot perform operation from directory to file.";
+
     static final File NULL_FILE_PLACEHOLDER = new File("/NULL_FILE");
     static final String LINE_SEPARATOR = System.getProperty("line.separator");
     // CheckStyle:VisibilityModifier OFF - bc
@@ -85,9 +89,9 @@ public class Copy extends Task {
     protected boolean includeEmpty = true;
     protected boolean failonerror = true;
 
-    protected Hashtable fileCopyMap = new Hashtable();
-    protected Hashtable dirCopyMap = new Hashtable();
-    protected Hashtable completeDirMap = new Hashtable();
+    protected Hashtable fileCopyMap = new LinkedHashtable();
+    protected Hashtable dirCopyMap = new LinkedHashtable();
+    protected Hashtable completeDirMap = new LinkedHashtable();
 
     protected Mapper mapperElement = null;
     protected FileUtils fileUtils;
@@ -97,6 +101,11 @@ public class Copy extends Task {
     private String inputEncoding = null;
     private String outputEncoding = null;
     private long granularity = 0;
+    private boolean force = false;
+
+    // used to store the single non-file resource to copy when the
+    // tofile attribute has been used
+    private Resource singleResource = null;
 
     /**
      * Copy task constructor.
@@ -223,6 +232,26 @@ public class Copy extends Task {
      */
     public void setOverwrite(boolean overwrite) {
         this.forceOverwrite = overwrite;
+    }
+
+    /**
+     * Whether read-only destinations will be overwritten.
+     *
+     * <p>Defaults to false</p>
+     *
+     * @since Ant 1.8.2
+     */
+    public void setForce(boolean f) {
+        force = f;
+    }
+
+    /**
+     * Whether read-only destinations will be overwritten.
+     *
+     * @since Ant 1.8.2
+     */
+    public boolean getForce() {
+        return force;
     }
 
     /**
@@ -395,10 +424,22 @@ public class Copy extends Task {
             // will be removed in validateAttributes
             savedRc = (ResourceCollection) rcs.elementAt(0);
         }
-        // make sure we don't have an illegal set of options
-        validateAttributes();
 
         try {
+            // make sure we don't have an illegal set of options
+            try {
+                validateAttributes();
+            } catch (BuildException e) {
+                if (failonerror
+                    || !getMessage(e)
+                    .equals(MSG_WHEN_COPYING_EMPTY_RC_TO_FILE)) {
+                    throw e;
+                } else {
+                    log("Warning: " + getMessage(e), Project.MSG_ERR);
+                    return;
+                }
+            }
+
             // deal with the single file
             copySingleFile();
 
@@ -514,11 +555,15 @@ public class Copy extends Task {
                 }
             }
 
-            if (nonFileResources.size() > 0) {
+            if (nonFileResources.size() > 0 || singleResource != null) {
                 Resource[] nonFiles =
                     (Resource[]) nonFileResources.toArray(new Resource[nonFileResources.size()]);
                 // restrict to out-of-date resources
                 Map map = scan(nonFiles, destDir);
+                if (singleResource != null) {
+                    map.put(singleResource,
+                            new String[] { destFile.getAbsolutePath() });
+                }
                 try {
                     doResourceOperations(map);
                 } catch (BuildException e) {
@@ -532,6 +577,7 @@ public class Copy extends Task {
         } finally {
             // clean up again, so this instance can be used a second
             // time
+            singleResource = null;
             file = savedFile;
             destFile = savedDestFile;
             destDir = savedDestDir;
@@ -625,19 +671,21 @@ public class Copy extends Task {
                     "Cannot concatenate multiple files into a single file.");
             } else {
                 ResourceCollection rc = (ResourceCollection) rcs.elementAt(0);
-                if (!rc.isFilesystemOnly()) {
+                if (!rc.isFilesystemOnly() && !supportsNonFileResources()) {
                     throw new BuildException("Only FileSystem resources are"
-                                             + " supported when concatenating"
-                                             + " files.");
+                                             + " supported.");
                 }
                 if (rc.size() == 0) {
-                    throw new BuildException(
-                        "Cannot perform operation from directory to file.");
+                    throw new BuildException(MSG_WHEN_COPYING_EMPTY_RC_TO_FILE);
                 } else if (rc.size() == 1) {
                     Resource res = (Resource) rc.iterator().next();
                     FileProvider r = (FileProvider) res.as(FileProvider.class);
                     if (file == null) {
-                        file = r.getFile();
+                        if (r != null) {
+                            file = r.getFile();
+                        } else {
+                            singleResource = res;
+                        }
                         rcs.removeElementAt(0);
                     } else {
                         throw new BuildException(
@@ -824,10 +872,13 @@ public class Copy extends Task {
                             executionFilters
                                 .addFilterSet((FilterSet) filterEnum.nextElement());
                         }
-                        fileUtils.copyFile(fromFile, toFile, executionFilters,
+                        fileUtils.copyFile(new File(fromFile), new File(toFile),
+                                           executionFilters,
                                            filterChains, forceOverwrite,
-                                           preserveLastModified, inputEncoding,
-                                           outputEncoding, getProject());
+                                           preserveLastModified,
+                                           /* append: */ false, inputEncoding,
+                                           outputEncoding, getProject(),
+                                           getForce());
                     } catch (IOException ioe) {
                         String msg = "Failed to copy " + fromFile + " to " + toFile
                             + " due to " + getDueTo(ioe);
@@ -914,9 +965,11 @@ public class Copy extends Task {
                                                    filterChains,
                                                    forceOverwrite,
                                                    preserveLastModified,
+                                                   /* append: */ false,
                                                    inputEncoding,
                                                    outputEncoding,
-                                                   getProject());
+                                                   getProject(),
+                                                   getForce());
                     } catch (IOException ioe) {
                         String msg = "Failed to copy " + fromResource
                             + " to " + toFile

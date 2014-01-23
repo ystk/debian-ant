@@ -20,7 +20,7 @@ package org.apache.tools.ant.taskdefs;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Hashtable;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Vector;
 import org.apache.tools.ant.BuildException;
@@ -527,7 +527,7 @@ public class ExecuteOn extends ExecTask {
         final char fileSeparator = File.separatorChar;
         Vector targets = new Vector();
         if (targetFilePos != null) {
-            Hashtable addedFiles = new Hashtable();
+            HashSet addedFiles = new HashSet();
             for (int i = 0; i < srcFiles.length; i++) {
                 String[] subTargets = mapper.mapFileName(srcFiles[i]);
                 if (subTargets != null) {
@@ -543,7 +543,7 @@ public class ExecuteOn extends ExecTask {
                         }
                         if (!addedFiles.contains(name)) {
                             targets.addElement(name);
-                            addedFiles.put(name, name);
+                            addedFiles.add(name);
                         }
                     }
                 }
@@ -708,6 +708,11 @@ public class ExecuteOn extends ExecTask {
             String[] command = getCommandline(s, b);
             log(Commandline.describeCommand(command), Project.MSG_VERBOSE);
             exe.setCommandline(command);
+            if (redirectorElement != null) {
+                setupRedirector();
+                redirectorElement.configure(redirector, null);
+                exe.setStreamHandler(redirector.createHandler());
+            }
             runExecute(exe);
         } else {
             int stillToDo = fileNames.size();
