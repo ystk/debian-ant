@@ -202,7 +202,7 @@ public class ComponentHelper  {
     /**
      * @return A deep copy of the restrictredDefinition
      */
-    private Map getRestrictedDefintion() {
+    private Map getRestrictedDefinition() {
         Map result = new HashMap();
         synchronized (restrictedDefinitions) {
             for(Iterator i = restrictedDefinitions.entrySet().iterator();
@@ -241,7 +241,7 @@ public class ComponentHelper  {
         synchronized (this) {
             checkedNamespaces.addAll(inheritedCheckedNamespace);
         }
-        Map inheritedRestrictedDef = helper.getRestrictedDefintion();
+        Map inheritedRestrictedDef = helper.getRestrictedDefinition();
         synchronized (restrictedDefinitions) {
             restrictedDefinitions.putAll(inheritedRestrictedDef);
         }
@@ -1094,11 +1094,6 @@ public class ComponentHelper  {
 
         public Object get(Object key) {
             return getTypeClass((String) key);
-        }
-
-        Object create(String name) {
-            AntTypeDefinition def = getDefinition(name);
-            return (def == null) ? null : def.create(project);
         }
 
         Class getTypeClass(String name) {

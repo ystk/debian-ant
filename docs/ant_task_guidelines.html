@@ -20,9 +20,9 @@ Apache Ant Task Design Guidelines
 </title>
 </head><body>
 
-<h1>Apache Ant Task Design Guidelines</h1>
+<h1>Apache Ant&trade; Task Design Guidelines</h1>
 
-This document covers how to write Ant tasks to a standard required to be
+This document covers how to write Apache Ant tasks to a standard required to be
 incorporated into the Ant distribution. You may find it useful when
 writing tasks for personal use as the issues it addresses are still
 there in such a case.
@@ -416,10 +416,10 @@ that constitute part of the patch.
 <li><h3>Approach 2 - The Manual Way</h3>
 <p>
 Patches to existing files should be generated with
-<code>svn diff -u filename</code>
+<code>svn diff filename</code>
  and save the output to a file. If you want to get
-the changes made to multiple files in a directory , just use <code>cvs
-diff -u</code>.  Then, Tar and GZip the patch file as well as any new files
+the changes made to multiple files in a directory , just use <code>svn
+diff</code>.  Then, Tar and GZip the patch file as well as any new files
 that you have added.
 </ul>
 <p>
@@ -496,8 +496,7 @@ subject.
 <li>Patch files generated using svn diff -u
 <li>patch files include a patch to defaults.properties to register the
 tasks
-<li>patch files include a patch to coretasklist.html or
-optionaltasklist.html to link to the new task page
+<li>patch files include a patch to tasklist.html to link to the new task page
 <li>Message to dev contains [SUBMIT] and task name in subject
 <li>Message body contains a rationale for the task
 <li>Message attachments contain the required files -source, documentation,

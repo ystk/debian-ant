@@ -79,7 +79,8 @@ public class FailureRecorder extends ProjectComponent implements JUnitResultForm
     public static final String MAGIC_PROPERTY_CLASS_LOCATION
         = "ant.junit.failureCollector";
 
-    /** Default location and name for the generated JUnit class file. {@value} */
+    /** Default location and name for the generated JUnit class file,
+     *  in the temp directory + FailedTests */
     public static final String DEFAULT_CLASS_LOCATION
         = System.getProperty("java.io.tmpdir") + "FailedTests";
 
@@ -248,7 +249,9 @@ public class FailureRecorder extends ProjectComponent implements JUnitResultForm
             File sourceFile = new File((getLocationName() + ".java"));
             verbose("Write collector class to '" + sourceFile.getAbsolutePath() + "'");
 
-            sourceFile.delete();
+            if (sourceFile.exists() && !sourceFile.delete()) {
+                throw new IOException("could not delete " + sourceFile);
+            }
             writer = new BufferedWriter(new FileWriter(sourceFile));
 
             createClassHeader();
@@ -333,13 +336,13 @@ public class FailureRecorder extends ProjectComponent implements JUnitResultForm
     /**
      * TestInfos holds information about a given test for later use.
      */
-    public class TestInfos implements Comparable {
+    public static class TestInfos implements Comparable {
 
         /** The class name of the test. */
-        private String className;
+        private final String className;
 
         /** The method name of the testcase. */
-        private String methodName;
+        private final String methodName;
 
         /**
          * This constructor extracts the needed information from the given test.
@@ -347,8 +350,8 @@ public class FailureRecorder extends ProjectComponent implements JUnitResultForm
          */
         public TestInfos(Test test) {
             className = test.getClass().getName();
-            methodName = test.toString();
-            methodName = methodName.substring(0, methodName.indexOf('('));
+            String _methodName = test.toString();
+            methodName = _methodName.substring(0, _methodName.indexOf('('));
         }
 
         /**
@@ -366,7 +369,7 @@ public class FailureRecorder extends ProjectComponent implements JUnitResultForm
          * The SortedMap needs comparable elements.
          * @param other the object to compare to.
          * @return the result of the comparison.
-         * @see java.lang.Comparable#compareTo(T)
+         * @see java.lang.Comparable#compareTo
          * @see SortedSet#comparator()
          */
         public int compareTo(Object other) {
@@ -376,6 +379,12 @@ public class FailureRecorder extends ProjectComponent implements JUnitResultForm
             } else {
                 return -1;
             }
+        }
+        public boolean equals(Object obj) {
+            return obj instanceof TestInfos && toString().equals(obj.toString());
+        }
+        public int hashCode() {
+            return toString().hashCode();
         }
     }
 

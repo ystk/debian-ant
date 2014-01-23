@@ -37,8 +37,24 @@ import java.util.Vector;
  *
  * @since Ant 1.8.0
  */
-public class VectorSet extends Vector {
+public final class VectorSet extends Vector {
     private final HashSet set = new HashSet();
+
+    public VectorSet() { super(); }
+
+    public VectorSet(int initialCapacity) { super(initialCapacity); }
+
+    public VectorSet(int initialCapacity, int capacityIncrement) {
+        super(initialCapacity, capacityIncrement);
+    }
+
+    public VectorSet(Collection c) {
+        if (c != null) {
+            for (Iterator i = c.iterator(); i.hasNext(); ) {
+                add(i.next());
+            }
+        }
+    }
 
     public synchronized boolean add(Object o) {
         if (!set.contains(o)) {
@@ -60,13 +76,13 @@ public class VectorSet extends Vector {
         // Vector.add seems to delegate to insertElementAt, but this
         // is not documented so we may better implement it ourselves
         if (set.add(o)) {
-            ensureCapacity(size() + 1);
-            Object[] elems = new Object[elementData.length];
-            System.arraycopy(elementData, 0, elems, 0, index);
-            elems[index] = o;
-            System.arraycopy(elementData, index, elems, index + 1,
-                             size() - index);
-            elementData = elems;
+            int count = size();
+            ensureCapacity(count + 1);
+            if (index != count) {
+                System.arraycopy(elementData, index, elementData, index + 1,
+                                 count - index);
+            }
+            elementData[index] = o;
             elementCount++;
         }
     }
@@ -137,8 +153,10 @@ public class VectorSet extends Vector {
         // shouldn't trust it
         if (set.remove(o)) {
             int index = indexOf(o);
-            System.arraycopy(elementData, index + 1, elementData, index,
-                             size() - index);
+            if (index < elementData.length - 1) {
+                System.arraycopy(elementData, index + 1, elementData, index,
+                                 elementData.length - index - 1);
+            }
             elementCount--;
             return true;
         }

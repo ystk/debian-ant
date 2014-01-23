@@ -19,8 +19,6 @@ package org.apache.tools.ant.taskdefs.optional.net;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Vector;
 
@@ -862,8 +860,7 @@ public class FTPTask extends Task implements FTPTaskConfig {
          * @return the SYMBOL representing the given action.
          */
         public int getAction() {
-            String actionL = getValue().toLowerCase(Locale.US);
-
+            String actionL = getValue().toLowerCase(Locale.ENGLISH);
             if (actionL.equals("send") || actionL.equals("put")) {
                 return SEND_FILES;
             } else if (actionL.equals("recv") || actionL.equals("get")) {
@@ -921,8 +918,7 @@ public class FTPTask extends Task implements FTPTaskConfig {
          * the attribute, in the context of the supplied action
          */
         public long getMilliseconds(int action) {
-            String granularityU = getValue().toUpperCase(Locale.US);
-
+            String granularityU = getValue().toUpperCase(Locale.ENGLISH);
             if ("".equals(granularityU)) {
                 if (action == SEND_FILES) {
                     return GRANULARITY_MINUTE;

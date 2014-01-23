@@ -94,6 +94,7 @@ public class Property extends Task {
     private boolean valueAttributeUsed = false;
     private boolean relative = false;
     private File basedir;
+    private boolean prefixValues = false;
 
     protected boolean userProperty; // set read-only properties
     // CheckStyle:VisibilityModifier ON
@@ -279,7 +280,7 @@ public class Property extends Task {
      */
     public void setPrefix(String prefix) {
         this.prefix = prefix;
-        if (!prefix.endsWith(".")) {
+        if (prefix != null && !prefix.endsWith(".")) {
             this.prefix += ".";
         }
     }
@@ -291,6 +292,26 @@ public class Property extends Task {
      */
     public String getPrefix() {
         return prefix;
+    }
+
+    /**
+     * Whether to apply the prefix when expanding properties on the
+     * right hand side of a properties file as well.
+     *
+     * @since Ant 1.8.2
+     */
+    public void setPrefixValues(boolean b) {
+        prefixValues = b;
+    }
+
+    /**
+     * Whether to apply the prefix when expanding properties on the
+     * right hand side of a properties file as well.
+     *
+     * @since Ant 1.8.2
+     */
+    public boolean getPrefixValues() {
+        return prefixValues;
     }
 
     /**
@@ -461,7 +482,7 @@ public class Property extends Task {
                 try {
                     File from = untypedValue instanceof File ? (File)untypedValue : new File(untypedValue.toString());
                     File to = basedir != null ? basedir : getProject().getBaseDir();
-                    String relPath = FileUtils.getFileUtils().getRelativePath(to, from);
+                    String relPath = FileUtils.getRelativePath(to, from);
                     relPath = relPath.replace('/', File.separatorChar);
                     addProperty(name, relPath);
                 } catch (Exception e) {
@@ -542,7 +563,7 @@ public class Property extends Task {
                                 Properties props, InputStream is, boolean isXml) throws IOException {
         if (isXml) {
             // load the xml based property definition
-            // use reflection because of bwc to Java 1.3
+            // use reflection because of bwc to Java 1.4
             try {
                 Method loadXmlMethod = props.getClass().getMethod("loadFromXML",
                                                                   new Class[] {InputStream.class});
@@ -643,16 +664,10 @@ public class Property extends Task {
             prefix += ".";
         }
         log("Loading Environment " + prefix, Project.MSG_VERBOSE);
-        Vector osEnv = Execute.getProcEnvironment();
-        for (Enumeration e = osEnv.elements(); e.hasMoreElements();) {
-            String entry = (String) e.nextElement();
-            int pos = entry.indexOf('=');
-            if (pos == -1) {
-                log("Ignoring: " + entry, Project.MSG_WARN);
-            } else {
-                props.put(prefix + entry.substring(0, pos),
-                          entry.substring(pos + 1));
-            }
+        Map osEnv = Execute.getEnvironmentVariables();
+        for (Iterator e = osEnv.entrySet().iterator(); e.hasNext(); ) {
+            Map.Entry entry = (Map.Entry) e.next();
+            props.put(prefix + entry.getKey(), entry.getValue());
         }
         addProperties(props);
     }
@@ -715,7 +730,8 @@ public class Property extends Task {
         new ResolvePropertyMap(
                                getProject(),
                                propertyHelper,
-                               propertyHelper.getExpanders()).resolveAllProperties(props);
+                               propertyHelper.getExpanders())
+            .resolveAllProperties(props, getPrefix(), getPrefixValues());
     }
 
 }

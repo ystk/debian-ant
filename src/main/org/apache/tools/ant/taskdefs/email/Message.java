@@ -26,7 +26,6 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 
 import org.apache.tools.ant.ProjectComponent;
-import org.apache.tools.ant.util.FileUtils;
 
 /**
  * Class representing an email message.
@@ -141,7 +140,7 @@ public class Message extends ProjectComponent {
             }
             out.flush();
         } finally {
-            FileUtils.close(out);
+            //do not close the out writer as it is reused afterwards by the mail task
         }
     }
 

@@ -191,6 +191,11 @@ abstract class ZipEncodingHelper {
     static final String UTF8 = "UTF8";
 
     /**
+     * variant name of the encoding UTF-8 used for comparisions.
+     */
+    private static final String UTF_DASH_8 = "utf-8";
+
+    /**
      * name of the encoding UTF-8
      */
     static final ZipEncoding UTF8_ZIP_ENCODING = new FallbackZipEncoding(UTF8);
@@ -240,6 +245,6 @@ abstract class ZipEncodingHelper {
             encoding = System.getProperty("file.encoding");
         }
         return UTF8.equalsIgnoreCase(encoding)
-            || "utf-8".equalsIgnoreCase(encoding);
+            || UTF_DASH_8.equalsIgnoreCase(encoding);
     }
 }

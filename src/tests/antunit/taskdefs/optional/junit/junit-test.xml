@@ -24,9 +24,10 @@
 
   <macrodef name="empty-test">
     <attribute name="classname"/>
+    <attribute name="package" default="test"/>
     <sequential>
       <echo file="${input}/@{classname}.java"><![CDATA[
-package test;
+package @{package};
 import junit.framework.TestCase;
 
 public class @{classname} extends TestCase {
@@ -44,9 +45,9 @@ public class @{classname} extends TestCase {
   <target name="testTimeoutLogOfBatchTests">
     <mkdir dir="${input}"/>
     <mkdir dir="${output}"/>
-    <empty-test classname="ATest"/>
+    <empty-test classname="ATest" package="org.apache.ant.test"/>
       <echo file="${input}/BTest.java"><![CDATA[
-package test;
+package org.apache.ant.test;
 import junit.framework.TestCase;
 
 public class BTest extends TestCase {
@@ -55,8 +56,8 @@ public class BTest extends TestCase {
     }
 }
 ]]>  </echo>
-    <empty-test classname="CTest"/>
-    <empty-test classname="DTest"/>
+    <empty-test classname="CTest" package="org.apache.ant.test"/>
+    <empty-test classname="DTest" package="org.apache.ant.test"/>
     <javac srcdir="${input}" destdir="${output}">
       <classpath refid="junit"/>
     </javac>
@@ -71,6 +72,7 @@ public class BTest extends TestCase {
     </junit>
     <au:assertLogContains text="ATest"/>
     <au:assertLogContains text="BTest"/>
+    <au:assertLogContains text="org.apache.ant.test.Batch-With-Multiple-Tests"/>
     <au:assertLogDoesntContain text="CTest"/>
     <au:assertLogDoesntContain text="DTest"/>
   </target>
@@ -289,4 +291,62 @@ public class BTest extends TestCase {
     <au:assertLogDoesntContain text="Running test.HTest"/>
   </target>
 
+  <target name="testMissingTestName">
+    <property name="test.name" value="null"/>
+    <au:expectfailure message="test name must be specified">
+      <junit fork="false">
+        <test name="${test.name}"/>
+      </junit>
+    </au:expectfailure>
+  </target>
+
+	<target name="-setUp.methods" depends="setUp">
+	  <property name="junit-3.8.2.location" location="../../../../lib/optional/junit-3.8.2.jar"/>
+	  <property name="junit-4.8.1.location" location="../../../../lib/optional/junit-4.8.1.jar"/>
+	  <condition property="test.can.run">
+	     <and>
+	     	<available file="${junit-3.8.2.location}"/>
+	     	<available file="${junit-4.8.1.location}"/>
+	     	<isset property="jdk1.5+"/>
+	     </and>
+	  </condition>
+	</target>
+
+	<target name="testFailNone" depends="-setUp.methods" if="test.can.run">
+		<echo file="${input}/T1.java">public class T1 extends
+			junit.framework.TestCase {
+			public void testOK() {}
+			public void testBad() {throw new RuntimeException("failed");}
+			}</echo>
+		<echo file="${input}/T2.java">
+		    import org.junit.Test;
+		    public class T2 {
+			@Test 
+			public void ok() {}
+			@Test 
+			public void bad() {
+			throw new RuntimeException("failed");}
+			}</echo>
+		<javac srcdir="${input}" destdir="${output}" includes="T1.java,T2.java" source="5"
+			 includeantruntime="false" >
+			 <classpath>
+			   <pathelement path="${java.class.path}"/>
+			 </classpath>
+		</javac>
+		<junit fork="true" printsummary="true" failureproperty="test.failed" errorproperty="test.haseerror">
+			<classpath>
+			  <pathelement location="${output}"/>
+			  <pathelement location="${junit-3.8.2.location}"/>
+			  <pathelement location="${junit-4.8.1.location}"/>
+			</classpath>
+			<test name="T1" methods="testOK" />
+			<test name="T2" methods="ok" />
+		</junit>
+		<au:assertFalse>
+		<or>
+		   <isset property="test.failed"/>
+		   <isset property="test.haserror"/>
+		</or>
+		</au:assertFalse>
+	</target>
 </project>

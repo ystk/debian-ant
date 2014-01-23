@@ -403,7 +403,7 @@ public class ProjectHelperImpl extends ProjectHelper {
             }
 
             if (def != null && !def.equals("")) {
-                helperImpl.project.setDefaultTarget(def);
+                helperImpl.project.setDefault(def);
             } else {
                 throw new BuildException("The default attribute is required");
             }
@@ -859,7 +859,7 @@ public class ProjectHelperImpl extends ProjectHelper {
             IntrospectionHelper ih = IntrospectionHelper.getHelper(helperImpl.project, parentClass);
 
             try {
-                String elementName = propType.toLowerCase(Locale.US);
+                String elementName = propType.toLowerCase(Locale.ENGLISH);
                 if (parent instanceof UnknownElement) {
                     UnknownElement uc = new UnknownElement(elementName);
                     uc.setProject(helperImpl.project);

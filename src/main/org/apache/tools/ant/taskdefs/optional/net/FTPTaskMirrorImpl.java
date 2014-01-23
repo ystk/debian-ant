@@ -50,6 +50,7 @@ import org.apache.tools.ant.types.selectors.SelectorUtils;
 import org.apache.tools.ant.util.FileUtils;
 import org.apache.tools.ant.util.RetryHandler;
 import org.apache.tools.ant.util.Retryable;
+import org.apache.tools.ant.util.VectorSet;
 
 public class FTPTaskMirrorImpl implements FTPTaskMirror {
 
@@ -63,7 +64,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
     private static final FileUtils FILE_UTILS = FileUtils.getFileUtils();
 
     private final FTPTask task;
-    private Vector dirCache = new Vector();
+    private Set dirCache = new HashSet();
     private int transferred = 0;
     private int skipped = 0;
 
@@ -257,12 +258,12 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                 excludes = new String[0];
             }
 
-            filesIncluded = new Vector();
+            filesIncluded = new VectorSet();
             filesNotIncluded = new Vector();
-            filesExcluded = new Vector();
-            dirsIncluded = new Vector();
+            filesExcluded = new VectorSet();
+            dirsIncluded = new VectorSet();
             dirsNotIncluded = new Vector();
-            dirsExcluded = new Vector();
+            dirsExcluded = new VectorSet();
 
             try {
                 String cwd = ftp.printWorkingDirectory();
@@ -735,7 +736,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                         } else if (!result) {
                             return;
                         }
-                        this.curpwd = this.curpwd + task.getSeparator()
+                        this.curpwd = getCurpwdPlusFileSep()
                             + currentPathElement;
                     } catch (IOException ioe) {
                         throw new BuildException("could not change working dir to "
@@ -796,7 +797,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
              * @return absolute path as string
              */
             public String getAbsolutePath() {
-                return curpwd + task.getSeparator() + ftpFile.getName();
+                return getCurpwdPlusFileSep() + ftpFile.getName();
             }
             /**
              * find out the relative path assuming that the path used to construct
@@ -940,6 +941,17 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
              */
             public String getCurpwd() {
                 return curpwd;
+            }
+            /**
+             * returns the path of the directory containing the AntFTPFile.
+             * of the full path of the file itself in case of AntFTPRootFile
+             * and appends the remote file separator if necessary.
+             * @return parent directory of the AntFTPFile
+             * @since Ant 1.8.2
+             */
+            public String getCurpwdPlusFileSep() {
+                String sep = task.getSeparator();
+                return curpwd.endsWith(sep) ? curpwd : curpwd + sep;
             }
             /**
              * find out if a symbolic link is encountered in the relative path of this file
@@ -1310,7 +1322,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                                                  + "directory: " + ftp.getReplyString());
                     }
                 }
-                dirCache.addElement(dir);
+                dirCache.add(dir);
             }
             ftp.changeWorkingDirectory(cwd);
         }

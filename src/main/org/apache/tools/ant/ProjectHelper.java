@@ -19,6 +19,8 @@ package org.apache.tools.ant;
 
 import java.io.File;
 import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
 
@@ -80,6 +82,59 @@ public class ProjectHelper {
         helper.parse(project, buildFile);
     }
 
+    /**
+     * Possible value for target's onMissingExtensionPoint attribute. It determines how to deal with
+     * targets that want to extend missing extension-points.
+     * <p>
+     * This class behaves like a Java 1.5 Enum class.
+     * 
+     * @since 1.8.2
+     */
+    public final static class OnMissingExtensionPoint {
+
+        /** fail if the extension-point is not defined */
+        public static final OnMissingExtensionPoint FAIL = new OnMissingExtensionPoint(
+                "fail");
+
+        /** warn if the extension-point is not defined */
+        public static final OnMissingExtensionPoint WARN = new OnMissingExtensionPoint(
+                "warn");
+
+        /** ignore the extensionOf attribute if the extension-point is not defined */
+        public static final OnMissingExtensionPoint IGNORE = new OnMissingExtensionPoint(
+                "ignore");
+
+        private static final OnMissingExtensionPoint[] values = new OnMissingExtensionPoint[] {
+                                FAIL, WARN, IGNORE };
+
+        private final String name;
+
+        private OnMissingExtensionPoint(String name) {
+            this.name = name;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public String toString() {
+            return name;
+        }
+
+        public static OnMissingExtensionPoint valueOf(String name) {
+            if (name == null) {
+                throw new NullPointerException();
+            }
+            for (int i = 0; i < values.length; i++) {
+                if (name.equals(values[i].name())) {
+                    return values[i];
+                }
+            }
+            throw new IllegalArgumentException(
+                    "Unknown onMissingExtensionPoint " + name);
+        }
+    }
+
     /** Default constructor */
     public ProjectHelper() {
     }
@@ -89,6 +144,7 @@ public class ProjectHelper {
     // that read build files using ProjectHelper ).
 
     private Vector importStack = new Vector();
+    private List extensionStack = new LinkedList();
 
     /**
      *  Import stack.
@@ -99,6 +155,19 @@ public class ProjectHelper {
      */
     public Vector getImportStack() {
         return importStack;
+    }
+
+    /**
+     * Extension stack.
+     * Used to keep track of targets that extend extension points.
+     *
+     * @return a list of three element string arrays where the first
+     * element is the name of the extensionpoint, the second the name
+     * of the target and the third the name of the enum like class
+     * {@link OnMissingExtensionPoint}.
+     */
+    public List getExtensionStack() {
+        return extensionStack;
     }
 
     private final static ThreadLocal targetPrefix = new ThreadLocal() {
@@ -213,7 +282,7 @@ public class ProjectHelper {
      * Get the first project helper found in the classpath
      * 
      * @return an project helper, never <code>null</code>
-     * @see #getHelpers()
+     * @see org.apache.tools.ant.ProjectHelperRepository#getHelpers()
      */
     public static ProjectHelper getProjectHelper() {
         return (ProjectHelper) ProjectHelperRepository.getInstance().getHelpers().next();
@@ -261,7 +330,7 @@ public class ProjectHelper {
             // reflect these into the target
             String value = replaceProperties(project, attrs.getValue(i), project.getProperties());
             try {
-                ih.setAttribute(project, target, attrs.getName(i).toLowerCase(Locale.US), value);
+                ih.setAttribute(project, target, attrs.getName(i).toLowerCase(Locale.ENGLISH), value);
             } catch (BuildException be) {
                 // id attribute must be set externally
                 if (!attrs.getName(i).equals("id")) {
