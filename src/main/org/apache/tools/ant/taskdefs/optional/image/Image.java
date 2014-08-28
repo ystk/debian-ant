@@ -213,7 +213,7 @@ public class Image extends MatchingTask {
      * the directory.
      * @since Ant 1.8.0
      */
-    public int processDir(final File srcDir, final String srcNames[],
+    public int processDir(final File srcDir, final String[] srcNames,
                           final File dstDir, final FileNameMapper mapper) {
         int writeCount = 0;
 
@@ -290,7 +290,8 @@ public class Image extends MatchingTask {
             try {
                 input = new FileSeekableStream(file);
                 image = JAI.create("stream", input);
-                for (int i = 0; i < instructions.size(); i++) {
+                final int size = instructions.size();
+                for (int i = 0; i < size; i++) {
                     Object instr = instructions.elementAt(i);
                     if (instr instanceof TransformOperation) {
                         image = ((TransformOperation) instr)
@@ -304,7 +305,8 @@ public class Image extends MatchingTask {
             }
 
             File dstParent = newFile.getParentFile();
-            if (!dstParent.isDirectory() && !dstParent.mkdirs()){
+            if (!dstParent.isDirectory()
+                && !(dstParent.mkdirs() || dstParent.isDirectory())) {
                 throw new BuildException("Failed to create parent directory "
                                          + dstParent);
             }
@@ -374,7 +376,8 @@ public class Image extends MatchingTask {
                 writeCount += processDir(srcDir, files, dest, mapper);
             }
             // deal with the filesets
-            for (int i = 0; i < filesets.size(); i++) {
+            final int size = filesets.size();
+            for (int i = 0; i < size; i++) {
                 final FileSet fs = (FileSet) filesets.elementAt(i);
                 final DirectoryScanner ds =
                     fs.getDirectoryScanner(getProject());

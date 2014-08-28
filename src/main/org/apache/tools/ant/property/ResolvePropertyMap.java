@@ -17,7 +17,6 @@
  */
 package org.apache.tools.ant.property;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
@@ -31,10 +30,10 @@ import org.apache.tools.ant.BuildException;
  * @since Ant 1.8.0
  */
 public class ResolvePropertyMap implements GetProperty {
-    private final Set seen = new HashSet();
+    private final Set<String> seen = new HashSet<String>();
     private final ParseProperties parseProperties;
     private final GetProperty master;
-    private Map map;
+    private Map<String, Object> map;
     private String prefix;
     // whether properties of the value side of the map should be
     // expanded
@@ -49,7 +48,7 @@ public class ResolvePropertyMap implements GetProperty {
      * @param master the master property holder (usually PropertyHelper)
      * @param expanders a collection of expanders (usually from PropertyHelper).
      */
-    public ResolvePropertyMap(Project project, GetProperty master, Collection expanders) {
+    public ResolvePropertyMap(Project project, GetProperty master, Collection<PropertyExpander> expanders) {
         this.master = master;
         this.parseProperties = new ParseProperties(project, expanders, this);
     }
@@ -88,10 +87,19 @@ public class ResolvePropertyMap implements GetProperty {
             }
 
             seen.add(name);
+
+            String recursiveCallKey = name;
+            if (prefix != null && !expandingLHS && !prefixValues) {
+                // only look up unprefixed properties inside the map
+                // if prefixValues is true or we are expanding the key
+                // itself
+                recursiveCallKey = prefix + name;
+            }
+
             expandingLHS = false;
             // will recurse into this method for each property
             // reference found in the map's value
-            return parseProperties.parseProperties((String) map.get(name));
+            return parseProperties.parseProperties((String) map.get(recursiveCallKey));
         } finally {
             seen.remove(name);
         }
@@ -102,7 +110,7 @@ public class ResolvePropertyMap implements GetProperty {
      * @param map the map to resolve properties in.
      * @deprecated since Ant 1.8.2, use the three-arg method instead.
      */
-    public void resolveAllProperties(Map map) {
+    public void resolveAllProperties(Map<String, Object> map) {
         resolveAllProperties(map, null, false);
     }
 
@@ -113,7 +121,7 @@ public class ResolvePropertyMap implements GetProperty {
      * will finally receive - may be null.
      * @deprecated since Ant 1.8.2, use the three-arg method instead.
      */
-    public void resolveAllProperties(Map map, String prefix) {
+    public void resolveAllProperties(Map<String, Object> map, String prefix) {
         resolveAllProperties(map, null, false);
     }
 
@@ -125,7 +133,7 @@ public class ResolvePropertyMap implements GetProperty {
      * @param prefixValues - whether the prefix will be applied
      * to properties on the value side of the map as well.
      */
-    public void resolveAllProperties(Map map, String prefix,
+    public void resolveAllProperties(Map<String, Object> map, String prefix,
                                      boolean prefixValues) {
         // The map, prefix and prefixValues flag get used in the
         // getProperty callback
@@ -133,9 +141,8 @@ public class ResolvePropertyMap implements GetProperty {
         this.prefix = prefix;
         this.prefixValues = prefixValues;
 
-        for (Iterator i = map.keySet().iterator(); i.hasNext();) {
+        for (String key : map.keySet()) {
             expandingLHS = true;
-            String key = (String) i.next();
             Object result = getProperty(key);
             String value = result == null ? "" : result.toString();
             map.put(key, value);

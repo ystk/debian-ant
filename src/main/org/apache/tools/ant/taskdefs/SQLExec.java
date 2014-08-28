@@ -163,6 +163,11 @@ public class SQLExec extends JDBCTask {
     private Resource output = null;
 
     /**
+     * Output encoding.
+     */
+    private String outputEncoding = null;
+
+    /**
      * Action to perform if an error is found
      */
     private String onError = "abort";
@@ -204,7 +209,7 @@ public class SQLExec extends JDBCTask {
     private boolean rawBlobs;
 
     /**
-     * delimers must match in case and whitespace is significant.
+     * delimiters must match in case and whitespace is significant.
      * @since Ant 1.8.0
      */
     private boolean strictDelimiterMatching = true;
@@ -245,7 +250,7 @@ public class SQLExec extends JDBCTask {
     private String csvQuoteChar = null;
 
     /**
-     * Whether a warning is an error - in which case onError aplies.
+     * Whether a warning is an error - in which case onError applies.
      * @since Ant 1.8.0
      */
     private boolean treatWarningsAsErrors = false;
@@ -429,6 +434,17 @@ public class SQLExec extends JDBCTask {
     }
 
     /**
+     * The encoding to use when writing the result to a resource.
+     * <p>Default's to the platform's default encoding</p>
+     * @param outputEncoding the name of the encoding or null for the
+     * platform's default encoding
+     * @since Ant 1.9.4
+     */
+    public void setOutputEncoding(String outputEncoding) {
+        this.outputEncoding = outputEncoding;
+    }
+
+    /**
      * whether output should be appended to or overwrite
      * an existing file.  Defaults to false.
      *
@@ -478,9 +494,9 @@ public class SQLExec extends JDBCTask {
     }
 
     /**
-     * If false, delimiters will be searched for in a case-insesitive
-     * manner (i.e. delimer="go" matches "GO") and surrounding
-     * whitespace will be ignored (delimter="go" matches "GO ").
+     * If false, delimiters will be searched for in a case-insensitive
+     * manner (i.e. delimiter="go" matches "GO") and surrounding
+     * whitespace will be ignored (delimiter="go" matches "GO ").
      * @since Ant 1.8.0
      */
     public void setStrictDelimiterMatching(boolean b) {
@@ -496,7 +512,7 @@ public class SQLExec extends JDBCTask {
     }
 
     /**
-     * Whether a warning is an error - in which case onError aplies.
+     * Whether a warning is an error - in which case onError applies.
      * @since Ant 1.8.0
      */
     public void setTreatWarningsAsErrors(boolean b) {
@@ -526,7 +542,7 @@ public class SQLExec extends JDBCTask {
      * will be quoted, not even if they contain the column
      * separator.</p>
      *
-     * <p><b>Note:<b> BLOB values will never be quoted.</p>
+     * <p><b>Note:</b> BLOB values will never be quoted.</p>
      *
      * <p>Defaults to "not set"</p>
      *
@@ -597,9 +613,7 @@ public class SQLExec extends JDBCTask {
 
             if (resources != null) {
                 // deal with the resources
-                Iterator iter = resources.iterator();
-                while (iter.hasNext()) {
-                    Resource r = (Resource) iter.next();
+                for (Resource r : resources) {
                     // Make a transaction for each resource
                     Transaction t = createTransaction();
                     t.setSrcResource(r);
@@ -623,13 +637,13 @@ public class SQLExec extends JDBCTask {
                         log("Opening PrintStream to output Resource " + output, Project.MSG_VERBOSE);
                         OutputStream os = null;
                         FileProvider fp =
-                            (FileProvider) output.as(FileProvider.class);
+                            output.as(FileProvider.class);
                         if (fp != null) {
                             os = new FileOutputStream(fp.getFile(), append);
                         } else {
                             if (append) {
                                 Appendable a =
-                                    (Appendable) output.as(Appendable.class);
+                                    output.as(Appendable.class);
                                 if (a != null) {
                                     os = a.getAppendOutputStream();
                                 }
@@ -643,7 +657,12 @@ public class SQLExec extends JDBCTask {
                                 }
                             }
                         }
-                        out = new PrintStream(new BufferedOutputStream(os));
+                        if (outputEncoding != null) {
+                            out = new PrintStream(new BufferedOutputStream(os),
+                                                  false, outputEncoding);
+                        } else {
+                            out = new PrintStream(new BufferedOutputStream(os));
+                        }
                     }
 
                     // Process all transactions
@@ -1030,7 +1049,7 @@ public class SQLExec extends JDBCTask {
                 throw new BuildException("only single argument resource "
                                          + "collections are supported.");
             }
-            setSrcResource((Resource) a.iterator().next());
+            setSrcResource(a.iterator().next());
         }
 
         /**

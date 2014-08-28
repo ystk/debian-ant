@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Enumeration;
+import java.net.URLConnection;
 import java.util.Stack;
 import java.util.Vector;
 import javax.xml.parsers.ParserConfigurationException;
@@ -126,7 +126,7 @@ public class XMLCatalog extends DataType
     //-- Fields ----------------------------------------------------------------
 
     /** Holds dtd/entity objects until needed. */
-    private Vector elements = new Vector();
+    private Vector<ResourceLocation> elements = new Vector<ResourceLocation>();
 
     /**
      * Classpath in which to attempt to resolve resources.
@@ -166,7 +166,7 @@ public class XMLCatalog extends DataType
      *
      * @return the elements of the catalog - ResourceLocation objects
      */
-    private Vector getElements() {
+    private Vector<ResourceLocation> getElements() {
         return getRef().elements;
     }
 
@@ -331,12 +331,7 @@ public class XMLCatalog extends DataType
         }
 
         // Add all nested elements to our catalog
-        Vector newElements = catalog.getElements();
-        Vector ourElements = getElements();
-        Enumeration e = newElements.elements();
-        while (e.hasMoreElements()) {
-            ourElements.addElement(e.nextElement());
-        }
+        getElements().addAll(catalog.getElements());
 
         // Append the classpath of the nested catalog
         Path nestedClasspath = catalog.getClasspath();
@@ -452,7 +447,7 @@ public class XMLCatalog extends DataType
         return source;
     }
 
-    protected synchronized void dieOnCircularReference(Stack stk, Project p)
+    protected synchronized void dieOnCircularReference(Stack<Object> stk, Project p)
         throws BuildException {
         if (isChecked()) {
             return;
@@ -477,7 +472,7 @@ public class XMLCatalog extends DataType
         if (!isReference()) {
             return this;
         }
-        return (XMLCatalog) getCheckedRef(XMLCatalog.class, "xmlcatalog");
+        return getCheckedRef(XMLCatalog.class, "xmlcatalog");
     }
 
     /**
@@ -504,7 +499,7 @@ public class XMLCatalog extends DataType
             loader = getProject().createClassLoader(Path.systemClasspath);
 
             try {
-                Class clazz = Class.forName(APACHE_RESOLVER, true, loader);
+                Class<?> clazz = Class.forName(APACHE_RESOLVER, true, loader);
 
                 // The Apache resolver is present - Need to check if it can
                 // be seen by the catalog resolver class. Start by getting
@@ -512,7 +507,7 @@ public class XMLCatalog extends DataType
                 ClassLoader apacheResolverLoader = clazz.getClassLoader();
 
                 // load the base class through this loader.
-                Class baseResolverClass
+                Class<?> baseResolverClass
                     = Class.forName(CATALOG_RESOLVER, true, apacheResolverLoader);
 
                 // and find its actual loader
@@ -594,15 +589,9 @@ public class XMLCatalog extends DataType
      *         of the Resource or null if no such information is available.
      */
     private ResourceLocation findMatchingEntry(String publicId) {
-        Enumeration e = getElements().elements();
-        ResourceLocation element = null;
-        while (e.hasMoreElements()) {
-            Object o = e.nextElement();
-            if (o instanceof ResourceLocation) {
-                element = (ResourceLocation) o;
-                if (element.getPublicId().equals(publicId)) {
-                    return element;
-                }
+        for (ResourceLocation element : getElements()) {
+            if (element.getPublicId().equals(publicId)) {
+                return element;
             }
         }
         return null;
@@ -775,7 +764,12 @@ public class XMLCatalog extends DataType
 
         if (url != null) {
             try {
-                InputStream is = url.openStream();
+                InputStream is = null;
+                URLConnection conn = url.openConnection();
+                if (conn != null) {
+                    conn.setUseCaches(false);
+                    is = conn.getInputStream();
+                }
                 if (is != null) {
                     source = new InputSource(is);
                     String sysid = url.toExternalForm();
@@ -917,7 +911,7 @@ public class XMLCatalog extends DataType
 
         private boolean externalCatalogsProcessed = false;
 
-        public ExternalResolver(Class resolverImplClass,
+        public ExternalResolver(Class<?> resolverImplClass,
                               Object resolverImpl) {
 
             this.resolverImpl = resolverImpl;
@@ -1072,6 +1066,13 @@ public class XMLCatalog extends DataType
                 // Apache resolver's resolveEntity method to cover
                 // this possibility.
                 //
+                if (base == null) {
+                    try {
+                        base = FILE_UTILS.getFileURL(getProject().getBaseDir()).toString();
+                    } catch (MalformedURLException x) {
+                        throw new TransformerException(x);
+                    }
+                }
                 try {
                     result =
                         (SAXSource) resolve.invoke(resolverImpl,

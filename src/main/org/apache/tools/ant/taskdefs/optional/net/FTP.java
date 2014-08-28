@@ -88,8 +88,10 @@ public class FTP extends Task implements FTPTaskConfig {
     protected static final int CHMOD = 5;
     protected static final int RM_DIR = 6;
     protected static final int SITE_CMD = 7;
-    /** return code of ftp - not implemented in commons-net version 1.0 */
+    /** return code of ftp */
     private static final int CODE_521 = 521;
+    private static final int CODE_550 = 550;
+    private static final int CODE_553 = 553;
 
     /** adjust uptodate calculations where server timestamps are HH:mm and client's
      * are HH:mm:ss */
@@ -725,6 +727,7 @@ public class FTP extends Task implements FTPTaskConfig {
                                 && pcounter != icounter
                                 && target.equals(array[pcounter].getName())) {
                                 candidateFound = false;
+                                break;
                             }
                         }
                         if (candidateFound) {
@@ -820,7 +823,8 @@ public class FTP extends Task implements FTPTaskConfig {
                     throw new BuildException("could not change working dir to "
                                              + parent.curpwd);
                 }
-                for (int fcount = 0; fcount < pathElements.size() - 1; fcount++) {
+                final int size = pathElements.size();
+                for (int fcount = 0; fcount < size - 1; fcount++) {
                     String currentPathElement = (String) pathElements.elementAt(fcount);
                     try {
                         boolean result = this.client.changeWorkingDirectory(currentPathElement);
@@ -843,7 +847,7 @@ public class FTP extends Task implements FTPTaskConfig {
                     }
 
                 }
-                String lastpathelement = (String) pathElements.elementAt(pathElements.size() - 1);
+                String lastpathelement = (String) pathElements.elementAt(size - 1);
                 FTPFile [] theFiles = listFiles(this.curpwd);
                 this.ftpFile = getFile(theFiles, lastpathelement);
             }
@@ -905,7 +909,7 @@ public class FTP extends Task implements FTPTaskConfig {
              */
             public String getFastRelativePath() {
                 String absPath = getAbsolutePath();
-                if (absPath.indexOf(rootPath + remoteFileSep) == 0) {
+                if (absPath.startsWith(rootPath + remoteFileSep)) {
                     return absPath.substring(rootPath.length() + remoteFileSep.length());
                 }
                 return null;
@@ -946,7 +950,8 @@ public class FTP extends Task implements FTPTaskConfig {
                 Vector pathElements = SelectorUtils.tokenizePath(getAbsolutePath(), remoteFileSep);
                 Vector pathElements2 = SelectorUtils.tokenizePath(currentPath, remoteFileSep);
                 String relPath = currentRelativePath;
-                for (int pcount = pathElements2.size(); pcount < pathElements.size(); pcount++) {
+                final int size = pathElements.size();
+                for (int pcount = pathElements2.size(); pcount < size; pcount++) {
                     String currentElement = (String) pathElements.elementAt(pcount);
                     FTPFile[] theFiles = listFiles(currentPath);
                     FTPFile theFile = null;
@@ -1698,7 +1703,7 @@ public class FTP extends Task implements FTPTaskConfig {
 
     /**
      * Executable a retryable object.
-     * @param h the retry hander.
+     * @param h the retry handler.
      * @param r the object that should be retried until it succeeds
      *          or the number of retrys is reached.
      * @param descr a description of the command that is being run.
@@ -1838,7 +1843,8 @@ public class FTP extends Task implements FTPTaskConfig {
             throw new BuildException("at least one fileset must be specified.");
         } else {
             // get files from filesets
-            for (int i = 0; i < filesets.size(); i++) {
+            final int size = filesets.size();
+            for (int i = 0; i < size; i++) {
                 FileSet fs = (FileSet) filesets.elementAt(i);
 
                 if (fs != null) {
@@ -2131,7 +2137,7 @@ public class FTP extends Task implements FTPTaskConfig {
         InputStream instream = null;
 
         try {
-            // XXX - why not simply new File(dir, filename)?
+            // TODO - why not simply new File(dir, filename)?
             File file = getProject().resolveFile(new File(dir, filename).getPath());
 
             if (newerOnly && isUpToDate(ftp, file, resolveFile(filename))) {
@@ -2240,7 +2246,7 @@ public class FTP extends Task implements FTPTaskConfig {
      * Retrieve a single file from the remote host. <code>filename</code> may
      * contain a relative path specification. <p>
      *
-     * The file will then be retreived using the entire relative path spec -
+     * The file will then be retrieved using the entire relative path spec -
      * no attempt is made to change directories. It is anticipated that this
      * may eventually cause problems with some FTP servers, but it simplifies
      * the coding.</p>
@@ -2351,13 +2357,13 @@ public class FTP extends Task implements FTPTaskConfig {
         throws IOException, BuildException {
         String workingDirectory = ftp.printWorkingDirectory();
         if (verbose) {
-            if (dir.indexOf("/") == 0 || workingDirectory == null) {
+            if (dir.startsWith("/") || workingDirectory == null) {
                 log("Creating directory: " + dir + " in /");
             } else {
                 log("Creating directory: " + dir + " in " + workingDirectory);
             }
         }
-        if (dir.indexOf("/") == 0) {
+        if (dir.startsWith("/")) {
             ftp.changeWorkingDirectory("/");
         }
         String subdir = "";
@@ -2372,7 +2378,7 @@ public class FTP extends Task implements FTPTaskConfig {
                     //  failed because the directory already exists.
                     int rc = ftp.getReplyCode();
                     if (!(ignoreNoncriticalErrors
-                          && (rc == FTPReply.CODE_550 || rc == FTPReply.CODE_553
+                          && (rc == CODE_550 || rc == CODE_553
                               || rc == CODE_521))) {
                         throw new BuildException("could not create directory: "
                                                  + ftp.getReplyString());
@@ -2403,7 +2409,7 @@ public class FTP extends Task implements FTPTaskConfig {
         throws BuildException {
         int rc = ftp.getReplyCode();
         if (!(ignoreNoncriticalErrors
-              && (rc == FTPReply.CODE_550 || rc == FTPReply.CODE_553 || rc == CODE_521))) {
+              && (rc == CODE_550 || rc == CODE_553 || rc == CODE_521))) {
             throw new BuildException("could not create directory: "
                                      + ftp.getReplyString());
         }

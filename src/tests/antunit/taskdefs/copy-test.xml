@@ -241,6 +241,13 @@ public class NullByteStreamResource extends Resource {
           failonerror="false"/>
   </target>
 
+  <target name="testQuiet">
+    <mkdir dir="${output}"/>
+    <mkdir dir="${input}"/>
+    <copy file="${input}/not-there.txt" todir="${output}" failonerror="false" quiet="true" />
+  	<au:assertLogDoesntContain text="Could not find file" />
+  </target>
+
   <target name="testMissingFilesetRoot">
     <mkdir dir="${output}"/>
     <au:expectfailure expectedMessage="does not exist">
@@ -438,5 +445,27 @@ public class NullByteStreamResource extends Resource {
     <au:assertFileExists file="${input}/somefile"/>
     <au:assertResourceDoesntContain resource="${input}/somefile"
                                     value="default contents"/>
+  </target>
+
+  <target name="testCopyDoesntDeleteReadonlyTargetWhenCopyFails"
+          description="https://issues.apache.org/bugzilla/show_bug.cgi?id=53095">
+    <mkdir dir="${input}"/>
+    <mkdir dir="${output}"/>
+    <touch file="${input}/somefile"/>
+    <touch file="${output}/somefile"/>
+    <exec executable="chmod" osfamily="unix">
+      <arg value="-w"/>
+      <arg file="${output}/somefile"/>
+    </exec>
+    <exec executable="attrib" osfamily="dos">
+      <arg value="+r"/>
+      <arg file="${output}/somefile"/>
+    </exec>
+    <au:expectfailure>
+      <copy todir="${output}" file="${input}/somefile"
+            overwrite="true"/>
+    </au:expectfailure>
+    <au:assertFileExists file="${input}/somefile"/>
+    <au:assertFileExists file="${output}/somefile"/>
   </target>
 </project>

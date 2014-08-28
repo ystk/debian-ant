@@ -185,10 +185,10 @@ public class PumpStreamHandler implements ExecuteStreamHandler {
                 return;
             }
 
-            t.join(JOIN_TIMEOUT);
             if (s != null && !s.isFinished()) {
                 s.stop();
             }
+            t.join(JOIN_TIMEOUT);
             while ((s == null || !s.isFinished()) && t.isAlive()) {
                 t.interrupt();
                 t.join(JOIN_TIMEOUT);
@@ -273,10 +273,9 @@ public class PumpStreamHandler implements ExecuteStreamHandler {
      */
     protected Thread createPump(InputStream is, OutputStream os,
                                 boolean closeWhenExhausted, boolean nonBlockingIO) {
-        final Thread result
-            = new ThreadWithPumper(new StreamPumper(is, os,
-                                                    closeWhenExhausted,
-                                                    nonBlockingIO));
+        StreamPumper pumper = new StreamPumper(is, os, closeWhenExhausted, nonBlockingIO);
+        pumper.setAutoflush(true);
+        final Thread result = new ThreadWithPumper(pumper);
         result.setDaemon(true);
         return result;
     }

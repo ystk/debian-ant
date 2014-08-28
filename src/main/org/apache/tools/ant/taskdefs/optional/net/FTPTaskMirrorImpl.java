@@ -54,8 +54,10 @@ import org.apache.tools.ant.util.VectorSet;
 
 public class FTPTaskMirrorImpl implements FTPTaskMirror {
 
-    /** return code of ftp - not implemented in commons-net version 1.0 */
+    /** return code of ftp */
     private static final int CODE_521 = 521;
+    private static final int CODE_550 = 550;
+    private static final int CODE_553 = 553;
 
     /** Date formatter used in logging, note not thread safe! */
     private static final SimpleDateFormat TIMESTAMP_LOGGING_SDF =
@@ -626,6 +628,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                                 && pcounter != icounter
                                 && target.equals(array[pcounter].getName())) {
                                 candidateFound = false;
+                                break;
                             }
                         }
                         if (candidateFound) {
@@ -722,7 +725,8 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                     throw new BuildException("could not change working dir to "
                                              + parent.curpwd);
                 }
-                for (int fcount = 0; fcount < pathElements.size() - 1; fcount++) {
+                final int size = pathElements.size();
+                for (int fcount = 0; fcount < size - 1; fcount++) {
                     String currentPathElement = (String) pathElements.elementAt(fcount);
                     try {
                         boolean result = this.client.changeWorkingDirectory(currentPathElement);
@@ -745,7 +749,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                     }
 
                 }
-                String lastpathelement = (String) pathElements.elementAt(pathElements.size() - 1);
+                String lastpathelement = (String) pathElements.elementAt(size - 1);
                 FTPFile [] theFiles = listFiles(this.curpwd);
                 this.ftpFile = getFile(theFiles, lastpathelement);
             }
@@ -807,7 +811,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
              */
             public String getFastRelativePath() {
                 String absPath = getAbsolutePath();
-                if (absPath.indexOf(rootPath + task.getSeparator()) == 0) {
+                if (absPath.startsWith(rootPath + task.getSeparator())) {
                     return absPath.substring(rootPath.length()
                                              + task.getSeparator().length());
                 }
@@ -850,7 +854,8 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                 Vector pathElements2 = SelectorUtils.tokenizePath(currentPath,
                                                                   task.getSeparator());
                 String relPath = currentRelativePath;
-                for (int pcount = pathElements2.size(); pcount < pathElements.size(); pcount++) {
+                final int size = pathElements.size();
+                for (int pcount = pathElements2.size(); pcount < size; pcount++) {
                     String currentElement = (String) pathElements.elementAt(pcount);
                     FTPFile[] theFiles = listFiles(currentPath);
                     FTPFile theFile = null;
@@ -1084,7 +1089,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
 
     /**
      * Executable a retryable object.
-     * @param h the retry hander.
+     * @param h the retry handler.
      * @param r the object that should be retried until it succeeds
      *          or the number of retrys is reached.
      * @param descr a description of the command that is being run.
@@ -1227,7 +1232,8 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
             throw new BuildException("at least one fileset must be specified.");
         } else {
             // get files from filesets
-            for (int i = 0; i < task.getFilesets().size(); i++) {
+            final int size = task.getFilesets().size();
+            for (int i = 0; i < size; i++) {
                 FileSet fs = (FileSet) task.getFilesets().elementAt(i);
 
                 if (fs != null) {
@@ -1518,7 +1524,7 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
         InputStream instream = null;
 
         try {
-            // XXX - why not simply new File(dir, filename)?
+            // TODO - why not simply new File(dir, filename)?
             File file = task.getProject().resolveFile(new File(dir, filename).getPath());
 
             if (task.isNewer() && isUpToDate(ftp, file, resolveFile(filename))) {
@@ -1752,13 +1758,13 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
         throws IOException, BuildException {
         String workingDirectory = ftp.printWorkingDirectory();
         if (task.isVerbose()) {
-            if (dir.indexOf("/") == 0 || workingDirectory == null) {
+            if (dir.startsWith("/") || workingDirectory == null) {
                 task.log("Creating directory: " + dir + " in /");
             } else {
                 task.log("Creating directory: " + dir + " in " + workingDirectory);
             }
         }
-        if (dir.indexOf("/") == 0) {
+        if (dir.startsWith("/")) {
             ftp.changeWorkingDirectory("/");
         }
         String subdir = "";
@@ -1772,8 +1778,9 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
                     //  to indicate that an attempt to create a directory has
                     //  failed because the directory already exists.
                     int rc = ftp.getReplyCode();
-                    if (!(task.isIgnoreNoncriticalErrors() && (rc == FTPReply.CODE_550
-                                                               || rc == FTPReply.CODE_553 || rc == CODE_521))) {
+                    if (!(task.isIgnoreNoncriticalErrors() && (rc == CODE_550
+                                                               || rc == CODE_553
+                                                               || rc == CODE_521))) {
                         throw new BuildException("could not create directory: "
                                                  + ftp.getReplyString());
                     }
@@ -1802,8 +1809,9 @@ public class FTPTaskMirrorImpl implements FTPTaskMirror {
     private void handleMkDirFailure(FTPClient ftp)
         throws BuildException {
         int rc = ftp.getReplyCode();
-        if (!(task.isIgnoreNoncriticalErrors() && (rc == FTPReply.CODE_550
-                                                   || rc == FTPReply.CODE_553 || rc == CODE_521))) {
+        if (!(task.isIgnoreNoncriticalErrors() && (rc == CODE_550
+                                                   || rc == CODE_553
+                                                   || rc == CODE_521))) {
             throw new BuildException("could not create directory: "
                                      + ftp.getReplyString());
         }

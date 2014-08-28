@@ -51,7 +51,7 @@ import org.apache.tools.ant.util.ResourceUtils;
  * in a persistent manner.</p>
  *
  * <p>The ModifiedSelector is implemented as a <b>CoreSelector</b> and uses default
- * values for all its attributes therefore the simpliest example is <pre>
+ * values for all its attributes therefore the simplest example is <pre>
  *   &lt;copy todir="dest"&gt;
  *       &lt;filelist dir="src"&gt;
  *           &lt;modified/&gt;
@@ -95,7 +95,7 @@ import org.apache.tools.ant.util.ResourceUtils;
  * element, so that the selector can find the classes. <pre>
  *   &lt;modified cacheclassname="com.mycompany.MyCache"&gt;
  *       &lt;classpath&gt;
- *           &lt;pathelement location="lib/mycompony-antutil.jar"/&gt;
+ *           &lt;pathelement location="lib/mycompany-antutil.jar"/&gt;
  *       &lt;/classpath&gt;
  *   &lt;/modified&gt;
  * </pre></p>
@@ -191,7 +191,7 @@ public class ModifiedSelector extends BaseExtendSelector
 
 
     /** How should the cached value and the new one compared? */
-    private Comparator comparator = null;
+    private Comparator<? super String> comparator = null;
 
     /** Algorithm for computing new values and updating the cache. */
     private Algorithm algorithm = null;
@@ -209,7 +209,7 @@ public class ModifiedSelector extends BaseExtendSelector
      * Parameter vector with parameters for later initialization.
      * @see #configure
      */
-    private Vector configParameter = new Vector();
+    private Vector<Parameter> configParameter = new Vector<Parameter>();
 
     /**
      * Parameter vector with special parameters for later initialization.
@@ -217,7 +217,7 @@ public class ModifiedSelector extends BaseExtendSelector
      * These parameters are used <b>after</b> the parameters with the pattern '*'.
      * @see #configure
      */
-    private Vector specialParameter = new Vector();
+    private Vector<Parameter> specialParameter = new Vector<Parameter>();
 
     /** The classloader of this class. */
     private ClassLoader myClassLoader = null;
@@ -297,21 +297,20 @@ public class ModifiedSelector extends BaseExtendSelector
         }
         Cache      defaultCache      = new PropertiesfileCache(cachefile);
         Algorithm  defaultAlgorithm  = new DigestAlgorithm();
-        Comparator defaultComparator = new EqualComparator();
+        Comparator<? super String> defaultComparator = new EqualComparator();
 
         //
         // -----  Set the main attributes, pattern '*'  -----
         //
-        for (Iterator itConfig = configParameter.iterator(); itConfig.hasNext();) {
-            Parameter par = (Parameter) itConfig.next();
-            if (par.getName().indexOf(".") > 0) {
+        for (Parameter parameter : configParameter) {
+            if (parameter.getName().indexOf(".") > 0) {
                 // this is a *.* parameter for later use
-                specialParameter.add(par);
+                specialParameter.add(parameter);
             } else {
-                useParameter(par);
+                useParameter(parameter);
             }
         }
-        configParameter = new Vector();
+        configParameter = new Vector<Parameter>();
 
         // specify the algorithm classname
         if (algoName != null) {
@@ -368,10 +367,9 @@ public class ModifiedSelector extends BaseExtendSelector
         } else {
             if (comparatorClass != null) {
                 // use Algorithm specified by classname
-                comparator = (Comparator) loadClass(
-                    comparatorClass,
-                    "is not a Comparator.",
-                    Comparator.class);
+                @SuppressWarnings("unchecked")
+                Comparator<? super String> localComparator = loadClass(comparatorClass, "is not a Comparator.", Comparator.class);
+                comparator = localComparator;
             } else {
                 // nothing specified - use default
                 comparator = defaultComparator;
@@ -381,11 +379,11 @@ public class ModifiedSelector extends BaseExtendSelector
         //
         // -----  Set the special attributes, pattern '*.*'  -----
         //
-        for (Iterator itSpecial = specialParameter.iterator(); itSpecial.hasNext();) {
-            Parameter par = (Parameter) itSpecial.next();
+        for (Iterator<Parameter> itSpecial = specialParameter.iterator(); itSpecial.hasNext();) {
+            Parameter par = itSpecial.next();
             useParameter(par);
         }
-        specialParameter = new Vector();
+        specialParameter = new Vector<Parameter>();
     }
 
 
@@ -398,11 +396,11 @@ public class ModifiedSelector extends BaseExtendSelector
      * @param type the type to check against
      * @return a castable object
      */
-    protected Object loadClass(String classname, String msg, Class type) {
+    protected <T> T loadClass(String classname, String msg, Class<? extends T> type) {
         try {
             // load the specified class
             ClassLoader cl = getClassLoader();
-            Class clazz = null;
+            Class<?> clazz = null;
             if (cl != null) {
                 clazz = cl.loadClass(classname);
             } else {
@@ -414,7 +412,7 @@ public class ModifiedSelector extends BaseExtendSelector
             if (!type.isInstance(rv)) {
                 throw new BuildException("Specified class (" + classname + ") " + msg);
             }
-            return rv;
+            return (T) rv;
         } catch (ClassNotFoundException e) {
             throw new BuildException("Specified class (" + classname + ") not found.");
         } catch (Exception e) {
@@ -808,7 +806,7 @@ public class ModifiedSelector extends BaseExtendSelector
 
     /**
      * Signals that the last target has finished.
-     * @param event recieved BuildEvent
+     * @param event received BuildEvent
     */
     public void buildFinished(BuildEvent event) {
         if (getDelayUpdate()) {
@@ -819,7 +817,7 @@ public class ModifiedSelector extends BaseExtendSelector
 
     /**
      * Signals that a target has finished.
-     * @param event recieved BuildEvent
+     * @param event received BuildEvent
     */
     public void targetFinished(BuildEvent event) {
         if (getDelayUpdate()) {
@@ -830,7 +828,7 @@ public class ModifiedSelector extends BaseExtendSelector
 
     /**
      * Signals that a task has finished.
-     * @param event recieved BuildEvent
+     * @param event received BuildEvent
     */
     public void taskFinished(BuildEvent event) {
         if (getDelayUpdate()) {
@@ -841,7 +839,7 @@ public class ModifiedSelector extends BaseExtendSelector
 
     /**
      * Signals that a build has started.
-     * @param event recieved BuildEvent
+     * @param event received BuildEvent
     */
     public void buildStarted(BuildEvent event) {
         // no-op
@@ -860,7 +858,7 @@ public class ModifiedSelector extends BaseExtendSelector
 
     /**
      * Signals that a task is starting.
-     * @param event recieved BuildEvent
+     * @param event received BuildEvent
     */
     public void taskStarted(BuildEvent event) {
         // no-op
@@ -869,7 +867,7 @@ public class ModifiedSelector extends BaseExtendSelector
 
     /**
      * Signals a message logging event.
-     * @param event recieved BuildEvent
+     * @param event received BuildEvent
     */
     public void messageLogged(BuildEvent event) {
         // no-op
@@ -944,7 +942,7 @@ public class ModifiedSelector extends BaseExtendSelector
      * Get the comparator type to use.
      * @return the enumerated comparator type
      */
-    public Comparator getComparator() {
+    public Comparator<? super String> getComparator() {
         return comparator;
     }
 

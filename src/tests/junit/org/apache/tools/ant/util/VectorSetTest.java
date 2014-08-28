@@ -18,49 +18,63 @@
 
 package org.apache.tools.ant.util;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
-import junit.framework.TestCase;
+import org.junit.Test;
 
-public class VectorSetTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+public class VectorSetTest {
 
     private static final Object O = new Object();
     private VectorSet v = new VectorSet();
 
+    @Test
     public void testAdd() {
         assertTrue(v.add(O));
         assertFalse(v.add(O));
         assertEquals(1, v.size());
     }
 
+    @Test
     public void testAdd2() {
         v.add(0, O);
         v.add(1, O);
         assertEquals(1, v.size());
     }
 
+    @Test
     public void testAddElement() {
         v.addElement(O);
         v.addElement(O);
         assertEquals(1, v.size());
     }
 
+    @Test
     public void testAddAll() {
         assertTrue(v.addAll(Arrays.asList(new Object[] {O, O})));
         assertEquals(1, v.size());
     }
 
+    @Test
     public void testAddAll2() {
         assertTrue(v.addAll(0, Arrays.asList(new Object[] {O, O})));
         assertEquals(1, v.size());
     }
 
+    @Test
     public void testClear() {
         v.add(O);
         v.clear();
         assertEquals(0, v.size());
     }
-        
+
+    @Test
     public void testClone() {
         v.add(O);
         Object o = v.clone();
@@ -70,6 +84,7 @@ public class VectorSetTest extends TestCase {
         assertTrue(vs.contains(O));
     }
 
+    @Test
     public void testContains() {
         assertFalse(v.contains(O));
         v.add(O);
@@ -77,6 +92,7 @@ public class VectorSetTest extends TestCase {
         assertFalse(v.contains(null));
     }
 
+    @Test
     public void testContainsAll() {
         assertFalse(v.containsAll(Arrays.asList(new Object[] {O, O})));
         v.add(O);
@@ -84,12 +100,14 @@ public class VectorSetTest extends TestCase {
         assertFalse(v.containsAll(Arrays.asList(new Object[] {O, null})));
     }
 
+    @Test
     public void testInsertElementAt() {
         v.insertElementAt(O, 0);
         v.insertElementAt(O, 1);
         assertEquals(1, v.size());
     }
 
+    @Test
     public void testRemoveIndex() {
         v.add(O);
         assertSame(O, v.remove(0));
@@ -98,10 +116,12 @@ public class VectorSetTest extends TestCase {
             v.remove(0);
             fail("expected an AIOBE");
         } catch (ArrayIndexOutOfBoundsException e) {
+            //TODO assert exception values
             // expected
         }
     }
 
+    @Test
     public void testRemoveObject() {
         v.add(O);
         assertTrue(v.remove(O));
@@ -109,6 +129,7 @@ public class VectorSetTest extends TestCase {
         assertFalse(v.remove(O));
     }
 
+    @Test
     public void testRemoveAtEndWhenSizeEqualsCapacity() {
         v = new VectorSet(3, 1);
         Object a = new Object();
@@ -125,6 +146,7 @@ public class VectorSetTest extends TestCase {
         assertSame(b, v.elementAt(1));
     }
 
+    @Test
     public void testRemoveAtFrontWhenSizeEqualsCapacity() {
         v = new VectorSet(3, 1);
         v.add(O);
@@ -141,6 +163,7 @@ public class VectorSetTest extends TestCase {
         assertSame(b, v.elementAt(1));
     }
 
+    @Test
     public void testRemoveInMiddleWhenSizeEqualsCapacity() {
         v = new VectorSet(3, 1);
         Object a = new Object();
@@ -157,6 +180,7 @@ public class VectorSetTest extends TestCase {
         assertSame(b, v.elementAt(1));
     }
 
+    @Test
     public void testRemoveAll() {
         v.add(O);
         assertTrue(v.removeAll(Arrays.asList(new Object[] {O, O})));
@@ -164,12 +188,14 @@ public class VectorSetTest extends TestCase {
         assertFalse(v.removeAll(Arrays.asList(new Object[] {O, O})));
     }
 
+    @Test
     public void testRemoveAllElements() {
         v.add(O);
         v.removeAllElements();
         assertEquals(0, v.size());
     }
-        
+
+    @Test
     public void testRemoveElement() {
         v.add(O);
         assertTrue(v.removeElement(O));
@@ -177,6 +203,7 @@ public class VectorSetTest extends TestCase {
         assertFalse(v.removeElement(O));
     }
 
+    @Test
     public void testRemoveElementAt() {
         v.add(O);
         v.removeElementAt(0);
@@ -185,10 +212,12 @@ public class VectorSetTest extends TestCase {
             v.removeElementAt(0);
             fail("expected an AIOBE");
         } catch (ArrayIndexOutOfBoundsException e) {
+            //TODO assert exception values
             // expected
         }
     }
 
+    @Test
     public void testRemoveRange() {
         Object a = new Object();
         Object b = new Object();
@@ -200,19 +229,35 @@ public class VectorSetTest extends TestCase {
         assertTrue(v.contains(c));
     }
 
+    @Test
     public void testRetainAll() {
         Object a = new Object();
         Object b = new Object();
         Object c = new Object();
         v.addAll(Arrays.asList(new Object[] {O, a, b, c}));
         assertEquals(0, v.indexOf(O));
-        v.retainAll(Arrays.asList(new Object[] {c, O}));
+        assertTrue(v.retainAll(Arrays.asList(new Object[] {c, O})));
         assertEquals(2, v.size());
         assertTrue(v.contains(O));
         assertTrue(v.contains(c));
         assertEquals(0, v.indexOf(O));
     }
 
+    @Test
+    public void testRetainAllReturnValueAndEmptiness() {
+        v.add(1);
+        v.add(2);
+        v.add(3);
+        assertTrue(v.retainAll(Arrays.asList(1, 2)));
+        assertEquals(2, v.size());
+        assertFalse(v.retainAll(Arrays.asList(1, 2)));
+        assertEquals(2, v.size());
+        assertTrue(v.retainAll(Arrays.asList(4, 5)));
+        assertEquals(0, v.size());
+        assertFalse(v.retainAll(Arrays.asList(4, 5)));
+    }
+
+    @Test
     public void testSet() {
         v.add(O);
         Object a = new Object();
@@ -221,6 +266,7 @@ public class VectorSetTest extends TestCase {
         assertEquals(1, v.size());
     }
 
+    @Test
     public void testSetElementAt() {
         v.add(O);
         Object a = new Object();
@@ -228,4 +274,22 @@ public class VectorSetTest extends TestCase {
         assertSame(a, v.get(0));
         assertEquals(1, v.size());
     }
+
+    @Test
+    public void testRetainAllSpeed() {
+        int size = 50000;
+        for (int i = 0; i < size; i++) {
+            v.add(i);
+            v.add(i);
+        }
+        assertEquals(size, v.size());
+        ArrayList<Integer> list = new ArrayList<Integer>();
+        for (int i = size - 4; i < 2 * size; i++) {
+            list.add(i);
+            v.add(i);
+        }
+        assertTrue(v.retainAll(list));
+        assertEquals(v.toString(), size + 4, v.size());
+    }
+
 }

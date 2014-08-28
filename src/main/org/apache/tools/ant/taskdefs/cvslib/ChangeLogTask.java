@@ -133,7 +133,7 @@ public class ChangeLogTask extends AbstractCvsTask {
 
 
     /**
-     * Set a lookup list of user names & addresses
+     * Set a lookup list of user names &amp; addresses
      *
      * @param usersFile The file containing the users info.
      */
@@ -241,7 +241,8 @@ public class ChangeLogTask extends AbstractCvsTask {
 
             loadUserlist(userList);
 
-            for (int i = 0, size = cvsUsers.size(); i < size; i++) {
+            final int size = cvsUsers.size();
+            for (int i = 0; i < size; i++) {
                 final CvsUser user = (CvsUser) cvsUsers.get(i);
                 user.validate();
                 userList.put(user.getUserID(), user.getDisplayname());

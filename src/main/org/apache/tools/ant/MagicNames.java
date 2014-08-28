@@ -248,5 +248,46 @@ public final class MagicNames {
      */
     public static final String PROJECT_INVOKED_TARGETS
         = "ant.project.invoked-targets";
+
+    /**
+     * Name of the project reference holding an instance of {@link
+     * org.apache.tools.ant.taskdefs.launcher.CommandLauncher} to use
+     * when executing commands with the help of an external skript.
+     *
+     * <p>Alternatively this is the name of a system property holding
+     * the fully qualified class name of a {@link
+     * org.apache.tools.ant.taskdefs.launcher.CommandLauncher}.</p>
+     *
+     * Value: {@value}
+     * @since Ant 1.9.0
+     */
+    public static final String ANT_SHELL_LAUNCHER_REF_ID = "ant.shellLauncher";
+
+    /**
+     * Name of the project reference holding an instance of {@link
+     * org.apache.tools.ant.taskdefs.launcher.CommandLauncher} to use
+     * when executing commands without the help of an external skript.
+     *
+     * <p>Alternatively this is the name of a system property holding
+     * the fully qualified class name of a {@link
+     * org.apache.tools.ant.taskdefs.launcher.CommandLauncher}.</p>
+     *
+     * Value: {@value}
+     * @since Ant 1.9.0
+     */
+    public static final String ANT_VM_LAUNCHER_REF_ID = "ant.vmLauncher";
+    /**
+     * Name of the namespace "type".
+     * (Note: cannot be used as an element.)
+     * @since Ant 1.9.1
+     */
+    public static final String ATTRIBUTE_NAMESPACE = "attribute namespace";
+
+    /**
+     * Name of the property which can provide an override of the
+     * User-Agent used in &lt;get&gt; tasks.
+     * Value {@value}
+     */
+    public static final String HTTP_AGENT_PROPERTY = "ant.http.agent";
 }
 

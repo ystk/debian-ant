@@ -24,11 +24,17 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
@@ -36,6 +42,8 @@ import java.util.Vector;
 import org.apache.tools.ant.input.DefaultInputHandler;
 import org.apache.tools.ant.input.InputHandler;
 import org.apache.tools.ant.launch.AntMain;
+import org.apache.tools.ant.listener.SilentLogger;
+import org.apache.tools.ant.property.GetProperty;
 import org.apache.tools.ant.property.ResolvePropertyMap;
 import org.apache.tools.ant.util.ClasspathUtils;
 import org.apache.tools.ant.util.FileUtils;
@@ -56,18 +64,12 @@ import org.apache.tools.ant.util.ProxySetup;
 public class Main implements AntMain {
 
     /**
-     * A Set of args are are handled by the launcher and should
+     * A Set of args that are handled by the launcher and should
      * not be seen by Main.
      */
-    private static final Set LAUNCH_COMMANDS = new HashSet();
-    static {
-        LAUNCH_COMMANDS.add("-lib");
-        LAUNCH_COMMANDS.add("-cp");
-        LAUNCH_COMMANDS.add("-noclasspath");
-        LAUNCH_COMMANDS.add("--noclasspath");
-        LAUNCH_COMMANDS.add("-nouserlib");
-        LAUNCH_COMMANDS.add("-main");
-    }
+    private static final Set<String> LAUNCH_COMMANDS = Collections
+            .unmodifiableSet(new HashSet<String>(Arrays.asList("-lib", "-cp", "-noclasspath",
+                    "--noclasspath", "-nouserlib", "-main")));
 
     /** The default build file name. {@value} */
     public static final String DEFAULT_BUILD_FILENAME = "build.xml";
@@ -85,16 +87,16 @@ public class Main implements AntMain {
     private static PrintStream err = System.err;
 
     /** The build targets. */
-    private Vector targets = new Vector();
+    private Vector<String> targets = new Vector<String>();
 
     /** Set of properties that can be used by tasks. */
     private Properties definedProps = new Properties();
 
     /** Names of classes to add as listeners to project. */
-    private Vector listeners = new Vector(1);
+    private Vector<String> listeners = new Vector<String>(1);
 
     /** File names of property files to load on startup. */
-    private Vector propertyFiles = new Vector(1);
+    private Vector<String> propertyFiles = new Vector<String>(1);
 
     /** Indicates whether this build is to support interactive input */
     private boolean allowInput = true;
@@ -119,6 +121,11 @@ public class Main implements AntMain {
      * Whether or not output to the log is to be unadorned.
      */
     private boolean emacsMode = false;
+
+    /**
+     * Whether or not log output should be reduced to the minimum
+     */
+    private boolean silent = false;
 
     /**
      * Whether or not this instance has successfully been
@@ -147,6 +154,17 @@ public class Main implements AntMain {
      * proxy flag: default is false
      */
     private boolean proxy = false;
+
+    private Map<Class<?>, List<String>> extraArguments = new HashMap<Class<?>, List<String>>();
+
+    private static final GetProperty NOPROPERTIES = new GetProperty(){
+        public Object getProperty(String aName) {
+            // No existing property takes precedence
+            return null;
+        }};
+
+
+
 
     /**
      * Prints the message of the Throwable if it (the message) is not
@@ -202,7 +220,7 @@ public class Main implements AntMain {
         }
 
         if (additionalUserProperties != null) {
-            for (Enumeration e = additionalUserProperties.keys();
+            for (Enumeration<?> e = additionalUserProperties.keys();
                     e.hasMoreElements();) {
                 String key = (String) e.nextElement();
                 String property = additionalUserProperties.getProperty(key);
@@ -310,6 +328,8 @@ public class Main implements AntMain {
         boolean justPrintVersion = false;
         boolean justPrintDiagnostics = false;
 
+        ArgumentProcessorRegistry processorRegistry = ArgumentProcessorRegistry.getInstance();
+        
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
 
@@ -325,6 +345,8 @@ public class Main implements AntMain {
                 msgOutputLevel = Project.MSG_VERBOSE;
             } else if (arg.equals("-debug") || arg.equals("-d")) {
                 msgOutputLevel = Project.MSG_DEBUG;
+            } else if (arg.equals("-silent") || arg.equals("-S")) {
+                silent = true;
             } else if (arg.equals("-noinput")) {
                 allowInput = false;
             } else if (arg.equals("-logfile") || arg.equals("-l")) {
@@ -383,11 +405,29 @@ public class Main implements AntMain {
             } else if (arg.equals("-autoproxy")) {
                 proxy = true;
             } else if (arg.startsWith("-")) {
-                // we don't have any more args to recognize!
-                String msg = "Unknown argument: " + arg;
-                System.err.println(msg);
-                printUsage();
-                throw new BuildException("");
+                boolean processed = false;
+                for (ArgumentProcessor processor : processorRegistry.getProcessors()) {
+                    int newI = processor.readArguments(args, i);
+                    if (newI != -1) {
+                        List<String> extraArgs = extraArguments.get(processor.getClass());
+                        if (extraArgs == null) {
+                            extraArgs = new ArrayList<String>();
+                            extraArguments.put(processor.getClass(), extraArgs);
+                        }
+                        for (; i < newI && i < args.length; i++) {
+                            extraArgs.add(args[i]);
+                        }
+                        processed = true;
+                        break;
+                    }
+                }
+                if (!processed) {
+                    // we don't have any more args to recognize!
+                    String msg = "Unknown argument: " + arg;
+                    System.err.println(msg);
+                    printUsage();
+                    throw new BuildException("");
+                }
             } else {
                 // if it's no other arg, it may be the target
                 targets.addElement(arg);
@@ -419,9 +459,9 @@ public class Main implements AntMain {
                     }
                 } else {
                     // no search file specified: so search an existing default file
-                    Iterator it = ProjectHelperRepository.getInstance().getHelpers();
+                    Iterator<ProjectHelper> it = ProjectHelperRepository.getInstance().getHelpers();
                     do {
-                        ProjectHelper helper = (ProjectHelper) it.next();
+                        ProjectHelper helper = it.next();
                         searchForThis = helper.getDefaultBuildFile();
                         if (msgOutputLevel >= Project.MSG_VERBOSE) {
                             System.out.println("Searching the default build file: " + searchForThis);
@@ -434,9 +474,9 @@ public class Main implements AntMain {
                 }
             } else {
                 // no build file specified: so search an existing default file
-                Iterator it = ProjectHelperRepository.getInstance().getHelpers();
+                Iterator<ProjectHelper> it = ProjectHelperRepository.getInstance().getHelpers();
                 do {
-                    ProjectHelper helper = (ProjectHelper) it.next();
+                    ProjectHelper helper = it.next();
                     buildFile = new File(helper.getDefaultBuildFile());
                     if (msgOutputLevel >= Project.MSG_VERBOSE) {
                         System.out.println("Trying the default build file: " + buildFile);
@@ -451,12 +491,14 @@ public class Main implements AntMain {
             throw new BuildException("Build failed");
         }
 
-        // make sure it's not a directory (this falls into the ultra
-        // paranoid lets check everything category
-
         if (buildFile.isDirectory()) {
-            System.out.println("What? Buildfile: " + buildFile + " is a dir!");
-            throw new BuildException("Build failed");
+            File whatYouMeant = new File(buildFile, "build.xml");
+            if (whatYouMeant.isFile()) {
+                buildFile = whatYouMeant;
+            } else {
+                System.out.println("What? Buildfile: " + buildFile + " is a dir!");
+                throw new BuildException("Build failed");
+            }
         }
 
         // Normalize buildFile for re-import detection
@@ -607,11 +649,7 @@ public class Main implements AntMain {
 
     /** Load the property files specified by -propertyfile */
     private void loadPropertyFiles() {
-        for (int propertyFileIndex = 0;
-             propertyFileIndex < propertyFiles.size();
-             propertyFileIndex++) {
-            String filename
-                = (String) propertyFiles.elementAt(propertyFileIndex);
+        for (String filename : propertyFiles) {
             Properties props = new Properties();
             FileInputStream fis = null;
             try {
@@ -625,7 +663,7 @@ public class Main implements AntMain {
             }
 
             // ensure that -D properties take precedence
-            Enumeration propertyNames = props.propertyNames();
+            Enumeration<?> propertyNames = props.propertyNames();
             while (propertyNames.hasMoreElements()) {
                 String name = (String) propertyNames.nextElement();
                 if (definedProps.getProperty(name) == null) {
@@ -712,6 +750,17 @@ public class Main implements AntMain {
             return;
         }
 
+        ArgumentProcessorRegistry processorRegistry = ArgumentProcessorRegistry.getInstance();
+
+        for (ArgumentProcessor processor : processorRegistry.getProcessors()) {
+            List<String> extraArgs = extraArguments.get(processor.getClass());
+            if (extraArgs != null) {
+                if (processor.handleArg(extraArgs)) {
+                    return;
+                }
+            }
+        }
+
         final Project project = new Project();
         project.setCoreLoader(coreLoader);
 
@@ -758,30 +807,7 @@ public class Main implements AntMain {
                     }
                 }
 
-
-
-                project.init();
-
-                // resolve properties
-                PropertyHelper propertyHelper
-                    = (PropertyHelper) PropertyHelper.getPropertyHelper(project);
-                HashMap props = new HashMap(definedProps);
-                new ResolvePropertyMap(project, propertyHelper,
-                                       propertyHelper.getExpanders())
-                    .resolveAllProperties(props, null, false);
-
-                // set user-define properties
-                for (Iterator e = props.entrySet().iterator(); e.hasNext(); ) {
-                    Map.Entry ent = (Map.Entry) e.next();
-                    String arg = (String) ent.getKey();
-                    Object value = ent.getValue();
-                    project.setUserProperty(arg, String.valueOf(value));
-                }
-
-                project.setUserProperty(MagicNames.ANT_FILE,
-                                        buildFile.getAbsolutePath());
-                project.setUserProperty(MagicNames.ANT_FILE_TYPE,
-                                        MagicNames.ANT_FILE_TYPE_FILE);
+                setProperties(project);
 
                 project.setKeepGoingMode(keepGoingMode);
                 if (proxy) {
@@ -790,7 +816,23 @@ public class Main implements AntMain {
                     proxySetup.enableProxies();
                 }
 
+                for (ArgumentProcessor processor : processorRegistry.getProcessors()) {
+                    List<String> extraArgs = extraArguments.get(processor.getClass());
+                    if (extraArgs != null) {
+                        processor.prepareConfigure(project, extraArgs);
+                    }
+                }
+
                 ProjectHelper.configureProject(project, buildFile);
+
+                for (ArgumentProcessor processor : processorRegistry.getProcessors()) {
+                    List<String> extraArgs = extraArguments.get(processor.getClass());
+                    if (extraArgs != null) {
+                        if (processor.handleArg(project, extraArgs)) {
+                            return;
+                        }
+                    }
+                }
 
                 if (projectHelp) {
                     printDescription(project);
@@ -847,6 +889,34 @@ public class Main implements AntMain {
         }
     }
 
+    private void setProperties(final Project project) {
+
+        project.init();
+
+        // resolve properties
+        PropertyHelper propertyHelper = PropertyHelper.getPropertyHelper(project);
+        @SuppressWarnings({ "rawtypes", "unchecked" })
+        Map raw = new HashMap(definedProps);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> props = raw;
+
+        ResolvePropertyMap resolver = new ResolvePropertyMap(project,
+                NOPROPERTIES, propertyHelper.getExpanders());
+        resolver.resolveAllProperties(props, null, false);
+
+        // set user-define properties
+        for (Entry<String, Object> ent : props.entrySet()) {
+            String arg = ent.getKey();
+            Object value = ent.getValue();
+            project.setUserProperty(arg, String.valueOf(value));
+        }
+
+        project.setUserProperty(MagicNames.ANT_FILE,
+                                buildFile.getAbsolutePath());
+        project.setUserProperty(MagicNames.ANT_FILE_TYPE,
+                                MagicNames.ANT_FILE_TYPE_FILE);
+    }
+
     /**
      * Adds the listeners specified in the command line arguments,
      * along with the default listener, to the specified project.
@@ -859,7 +929,8 @@ public class Main implements AntMain {
         // Add the default listener
         project.addBuildListener(createLogger());
 
-        for (int i = 0; i < listeners.size(); i++) {
+        final int count = listeners.size();
+        for (int i = 0; i < count; i++) {
             String className = (String) listeners.elementAt(i);
             BuildListener listener =
                     (BuildListener) ClasspathUtils.newInstance(className,
@@ -891,7 +962,7 @@ public class Main implements AntMain {
         project.setInputHandler(handler);
     }
 
-    // XXX: (Jon Skeet) Any reason for writing a message and then using a bare
+    // TODO: (Jon Skeet) Any reason for writing a message and then using a bare
     // RuntimeException rather than just using a BuildException here? Is it
     // in case the message could end up being written to no loggers (as the
     // loggers could have failed to be created due to this failure)?
@@ -903,7 +974,11 @@ public class Main implements AntMain {
      */
     private BuildLogger createLogger() {
         BuildLogger logger = null;
-        if (loggerClassname != null) {
+        if (silent) {
+            logger = new SilentLogger();
+            msgOutputLevel = Project.MSG_WARN;
+            emacsMode = true;
+        } else if (loggerClassname != null) {
             try {
                 logger = (BuildLogger) ClasspathUtils.newInstance(
                         loggerClassname, Main.class.getClassLoader(),
@@ -930,49 +1005,45 @@ public class Main implements AntMain {
      * Prints the usage information for this class to <code>System.out</code>.
      */
     private static void printUsage() {
-        String lSep = System.getProperty("line.separator");
-        StringBuffer msg = new StringBuffer();
-        msg.append("ant [options] [target [target2 [target3] ...]]" + lSep);
-        msg.append("Options: " + lSep);
-        msg.append("  -help, -h              print this message" + lSep);
-        msg.append("  -projecthelp, -p       print project help information" + lSep);
-        msg.append("  -version               print the version information and exit" + lSep);
-        msg.append("  -diagnostics           print information that might be helpful to" + lSep);
-        msg.append("                         diagnose or report problems." + lSep);
-        msg.append("  -quiet, -q             be extra quiet" + lSep);
-        msg.append("  -verbose, -v           be extra verbose" + lSep);
-        msg.append("  -debug, -d             print debugging information" + lSep);
-        msg.append("  -emacs, -e             produce logging information without adornments"
-                   + lSep);
-        msg.append("  -lib <path>            specifies a path to search for jars and classes"
-                   + lSep);
-        msg.append("  -logfile <file>        use given file for log" + lSep);
-        msg.append("    -l     <file>                ''" + lSep);
-        msg.append("  -logger <classname>    the class which is to perform logging" + lSep);
-        msg.append("  -listener <classname>  add an instance of class as a project listener"
-                   + lSep);
-        msg.append("  -noinput               do not allow interactive input" + lSep);
-        msg.append("  -buildfile <file>      use given buildfile" + lSep);
-        msg.append("    -file    <file>              ''" + lSep);
-        msg.append("    -f       <file>              ''" + lSep);
-        msg.append("  -D<property>=<value>   use value for given property" + lSep);
-        msg.append("  -keep-going, -k        execute all targets that do not depend" + lSep);
-        msg.append("                         on failed target(s)" + lSep);
-        msg.append("  -propertyfile <name>   load all properties from file with -D" + lSep);
-        msg.append("                         properties taking precedence" + lSep);
-        msg.append("  -inputhandler <class>  the class which will handle input requests" + lSep);
-        msg.append("  -find <file>           (s)earch for buildfile towards the root of" + lSep);
-        msg.append("    -s  <file>           the filesystem and use it" + lSep);
-        msg.append("  -nice  number          A niceness value for the main thread:" + lSep
-                   + "                         1 (lowest) to 10 (highest); 5 is the default"
-                   + lSep);
-        msg.append("  -nouserlib             Run ant without using the jar files from" + lSep
-                   + "                         ${user.home}/.ant/lib" + lSep);
-        msg.append("  -noclasspath           Run ant without using CLASSPATH" + lSep);
-        msg.append("  -autoproxy             Java1.5+: use the OS proxy settings"
-                + lSep);
-        msg.append("  -main <class>          override Ant's normal entry point");
-        System.out.println(msg.toString());
+        System.out.println("ant [options] [target [target2 [target3] ...]]");
+        System.out.println("Options: ");
+        System.out.println("  -help, -h              print this message");
+        System.out.println("  -projecthelp, -p       print project help information");
+        System.out.println("  -version               print the version information and exit");
+        System.out.println("  -diagnostics           print information that might be helpful to");
+        System.out.println("                         diagnose or report problems.");
+        System.out.println("  -quiet, -q             be extra quiet");
+        System.out.println("  -silent, -S            print nothing but task outputs and build failures");
+        System.out.println("  -verbose, -v           be extra verbose");
+        System.out.println("  -debug, -d             print debugging information");
+        System.out.println("  -emacs, -e             produce logging information without adornments");
+        System.out.println("  -lib <path>            specifies a path to search for jars and classes");
+        System.out.println("  -logfile <file>        use given file for log");
+        System.out.println("    -l     <file>                ''");
+        System.out.println("  -logger <classname>    the class which is to perform logging");
+        System.out.println("  -listener <classname>  add an instance of class as a project listener");
+        System.out.println("  -noinput               do not allow interactive input");
+        System.out.println("  -buildfile <file>      use given buildfile");
+        System.out.println("    -file    <file>              ''");
+        System.out.println("    -f       <file>              ''");
+        System.out.println("  -D<property>=<value>   use value for given property");
+        System.out.println("  -keep-going, -k        execute all targets that do not depend");
+        System.out.println("                         on failed target(s)");
+        System.out.println("  -propertyfile <name>   load all properties from file with -D");
+        System.out.println("                         properties taking precedence");
+        System.out.println("  -inputhandler <class>  the class which will handle input requests");
+        System.out.println("  -find <file>           (s)earch for buildfile towards the root of");
+        System.out.println("    -s  <file>           the filesystem and use it");
+        System.out.println("  -nice  number          A niceness value for the main thread:"
+                + "                         1 (lowest) to 10 (highest); 5 is the default");
+        System.out.println("  -nouserlib             Run ant without using the jar files from"
+                + "                         ${user.home}/.ant/lib");
+        System.out.println("  -noclasspath           Run ant without using CLASSPATH");
+        System.out.println("  -autoproxy             Java1.5+: use the OS proxy settings");
+        System.out.println("  -main <class>          override Ant's normal entry point");
+        for (ArgumentProcessor processor : ArgumentProcessorRegistry.getInstance().getProcessors()) {
+            processor.printUsage(System.out);
+        }
     }
 
     /**
@@ -989,6 +1060,11 @@ public class Main implements AntMain {
      */
     private static String antVersion = null;
 
+    /**
+     * Cache of the short Ant version information when it has been loaded.
+     */
+    private static String shortAntVersion = null;
+    
     /**
      * Returns the Ant version information, if available. Once the information
      * has been loaded once, it's cached and returned from the cache on future
@@ -1007,10 +1083,11 @@ public class Main implements AntMain {
                     Main.class.getResourceAsStream("/org/apache/tools/ant/version.txt");
                 props.load(in);
                 in.close();
+                shortAntVersion = props.getProperty("VERSION");
 
                 StringBuffer msg = new StringBuffer();
                 msg.append("Apache Ant(TM) version ");
-                msg.append(props.getProperty("VERSION"));
+                msg.append(shortAntVersion);
                 msg.append(" compiled on ");
                 msg.append(props.getProperty("DATE"));
                 antVersion = msg.toString();
@@ -1022,6 +1099,24 @@ public class Main implements AntMain {
             }
         }
         return antVersion;
+    }
+    
+    /**
+     * Returns the short Ant version information, if available. Once the information
+     * has been loaded once, it's cached and returned from the cache on future
+     * calls.
+     * 
+     * @return the short Ant version information as a String
+     *         (always non-<code>null</code>)
+     *         
+     * @throws BuildException BuildException if the version information is unavailable
+     * @since Ant 1.9.3
+     */
+    public static String getShortAntVersion() throws BuildException {
+        if (shortAntVersion == null) {
+            getAntVersion();
+        }
+        return shortAntVersion;
     }
 
      /**
@@ -1045,17 +1140,15 @@ public class Main implements AntMain {
      * @param targets the targets to filter.
      * @return the filtered targets.
      */
-    private static Map removeDuplicateTargets(Map targets) {
-        Map locationMap = new HashMap();
-        for (Iterator i = targets.entrySet().iterator(); i.hasNext();) {
-            Map.Entry entry = (Map.Entry) i.next();
-            String name = (String) entry.getKey();
-            Target target = (Target) entry.getValue();
-            Target otherTarget =
-                (Target) locationMap.get(target.getLocation());
+    private static Map<String, Target> removeDuplicateTargets(Map<String, Target> targets) {
+        Map<Location, Target> locationMap = new HashMap<Location, Target>();
+        for (Entry<String, Target> entry : targets.entrySet()) {
+            String name = entry.getKey();
+            Target target = entry.getValue();
+            Target otherTarget = locationMap.get(target.getLocation());
             // Place this entry in the location map if
             //  a) location is not in the map
-            //  b) location is in map, but it's name is longer
+            //  b) location is in map, but its name is longer
             //     (an imported target will have a name. prefix)
             if (otherTarget == null
                 || otherTarget.getName().length() > name.length()) {
@@ -1063,9 +1156,8 @@ public class Main implements AntMain {
                     target.getLocation(), target); // Smallest name wins
             }
         }
-        Map ret = new HashMap();
-        for (Iterator i = locationMap.values().iterator(); i.hasNext();) {
-            Target target = (Target) i.next();
+        Map<String, Target> ret = new HashMap<String, Target>();
+        for (Target target : locationMap.values()) {
             ret.put(target.getName(), target);
         }
         return ret;
@@ -1084,25 +1176,21 @@ public class Main implements AntMain {
             boolean printDependencies) {
         // find the target with the longest name
         int maxLength = 0;
-        Map ptargets = removeDuplicateTargets(project.getTargets());
-        String targetName;
-        String targetDescription;
-        Target currentTarget;
+        Map<String, Target> ptargets = removeDuplicateTargets(project.getTargets());
         // split the targets in top-level and sub-targets depending
         // on the presence of a description
-        Vector topNames = new Vector();
-        Vector topDescriptions = new Vector();
-        Vector/*<Enumeration<String>>*/ topDependencies = new Vector();
-        Vector subNames = new Vector();
-        Vector/*<Enumeration<String>>*/ subDependencies = new Vector();
+        Vector<String> topNames = new Vector<String>();
+        Vector<String> topDescriptions = new Vector<String>();
+        Vector<Enumeration<String>> topDependencies = new Vector<Enumeration<String>>();
+        Vector<String> subNames = new Vector<String>();
+        Vector<Enumeration<String>> subDependencies = new Vector<Enumeration<String>>();
 
-        for (Iterator i = ptargets.values().iterator(); i.hasNext();) {
-            currentTarget = (Target) i.next();
-            targetName = currentTarget.getName();
+        for (Target currentTarget : ptargets.values()) {
+            String targetName = currentTarget.getName();
             if (targetName.equals("")) {
                 continue;
             }
-            targetDescription = currentTarget.getDescription();
+            String targetDescription = currentTarget.getDescription();
             // maintain a sorted list of targets
             if (targetDescription == null) {
                 int pos = findTargetPosition(subNames, targetName);
@@ -1151,10 +1239,11 @@ public class Main implements AntMain {
      *
      * @return the correct place in the list for the given name
      */
-    private static int findTargetPosition(Vector names, String name) {
-        int res = names.size();
-        for (int i = 0; i < names.size() && res == names.size(); i++) {
-            if (name.compareTo((String) names.elementAt(i)) < 0) {
+    private static int findTargetPosition(Vector<String> names, String name) {
+        final int size = names.size();
+        int res = size;
+        for (int i = 0; i < size && res == size; i++) {
+            if (name.compareTo(names.elementAt(i)) < 0) {
                 res = i;
             }
         }
@@ -1184,8 +1273,8 @@ public class Main implements AntMain {
      *               position so they line up (so long as the names really
      *               <i>are</i> shorter than this).
      */
-    private static void printTargets(Project project, Vector names,
-                                     Vector descriptions, Vector dependencies,
+    private static void printTargets(Project project, Vector<String> names,
+                                     Vector<String> descriptions, Vector<Enumeration<String>> dependencies,
                                      String heading,
                                      int maxlen) {
         // now, start printing the targets and their descriptions
@@ -1195,19 +1284,20 @@ public class Main implements AntMain {
         while (spaces.length() <= maxlen) {
             spaces += spaces;
         }
-        StringBuffer msg = new StringBuffer();
+        StringBuilder msg = new StringBuilder();
         msg.append(heading + lSep + lSep);
-        for (int i = 0; i < names.size(); i++) {
+        final int size = names.size();
+        for (int i = 0; i < size; i++) {
             msg.append(" ");
             msg.append(names.elementAt(i));
             if (descriptions != null) {
                 msg.append(
-                    spaces.substring(0, maxlen - ((String) names.elementAt(i)).length() + 2));
+                    spaces.substring(0, maxlen - names.elementAt(i).length() + 2));
                 msg.append(descriptions.elementAt(i));
             }
             msg.append(lSep);
             if (!dependencies.isEmpty()) {
-                Enumeration deps = (Enumeration) dependencies.elementAt(i);
+                Enumeration<String> deps = dependencies.elementAt(i);
                 if (deps.hasMoreElements()) {
                     msg.append("   depends on: ");
                     while (deps.hasMoreElements()) {
@@ -1216,7 +1306,7 @@ public class Main implements AntMain {
                             msg.append(", ");
                         }
                     }
-                    msg.append(lSep);                
+                    msg.append(lSep);
                 }
             }
         }

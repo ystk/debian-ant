@@ -20,6 +20,7 @@ package org.apache.tools.ant.taskdefs;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -57,13 +58,15 @@ public class Antlib extends Task implements TaskContainer {
      * @param project   the current project
      * @param antlibUrl the url to read the definitions from
      * @param uri       the uri that the antlib is to be placed in
-     * @return   the ant lib task
+     * @return the ant lib task
      */
     public static Antlib createAntlib(Project project, URL antlibUrl,
                                       String uri) {
         // Check if we can contact the URL
         try {
-            antlibUrl.openConnection().connect();
+            URLConnection conn = antlibUrl.openConnection();
+            conn.setUseCaches(false);
+            conn.connect();
         } catch (IOException ex) {
             throw new BuildException(
                 "Unable to find " + antlibUrl, ex);
@@ -108,13 +111,12 @@ public class Antlib extends Task implements TaskContainer {
         }
     }
 
-
     //
     // Instance
     //
     private ClassLoader classLoader;
-    private String      uri = "";
-    private List  tasks = new ArrayList();
+    private String uri = "";
+    private List<Object> tasks = new ArrayList<Object>();
 
     /**
      * Set the class loader for this antlib.
@@ -131,7 +133,7 @@ public class Antlib extends Task implements TaskContainer {
      * Set the URI for this antlib.
      * @param uri the namespace uri
      */
-    protected void  setURI(String uri) {
+    protected void setURI(String uri) {
         this.uri = uri;
     }
 
@@ -156,7 +158,8 @@ public class Antlib extends Task implements TaskContainer {
      * any tasks that derive from Definer.
      */
     public void execute() {
-        for (Iterator i = tasks.iterator(); i.hasNext();) {
+        //TODO handle tasks added via #addTask()
+        for (Iterator<Object> i = tasks.iterator(); i.hasNext();) {
             UnknownElement ue = (UnknownElement) i.next();
             setLocation(ue.getLocation());
             ue.maybeConfigure();

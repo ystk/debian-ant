@@ -22,26 +22,42 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 
-import junit.framework.TestCase;
+import org.apache.tools.ant.types.Resource;
 
 import org.apache.tools.ant.types.ResourceCollection;
 import org.apache.tools.ant.types.resources.ZipResource;
 import org.apache.tools.zip.JarMarker;
+import org.apache.tools.zip.Zip64ExtendedInformationExtraField;
 import org.apache.tools.zip.ZipEntry;
 import org.apache.tools.zip.ZipExtraField;
 import org.apache.tools.zip.ZipFile;
+import org.junit.Test;
 
-public class ZipExtraFieldTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+public class ZipExtraFieldTest {
+
+    @Test
     public void testPreservesExtraFields() throws IOException {
+        testExtraField(new Zip(), true);
+    }
+
+    public void testDoesntCreateZip64ExtraFieldForJar() throws IOException {
+        testExtraField(new Jar(), false);
+    }
+
+    private void testExtraField(Zip testInstance, boolean expectZip64)
+        throws IOException {
+
         File f = File.createTempFile("ziptest", ".zip");
         f.delete();
         ZipFile zf = null;
         try {
-            Zip testInstance = new Zip();
             testInstance.setDestFile(f);
             final ZipResource r = new ZipResource() {
                     public String getName() {
@@ -68,10 +84,8 @@ public class ZipExtraFieldTest extends TestCase {
             testInstance.add(new ResourceCollection() {
                     public boolean isFilesystemOnly() { return false; }
                     public int size() { return 1; }
-                    public Iterator iterator() {
-                        ArrayList l = new ArrayList();
-                        l.add(r);
-                        return l.iterator();
+                    public Iterator<Resource> iterator() {
+                        return Collections.<Resource>singleton(r).iterator();
                     }
                 });
             testInstance.execute();
@@ -79,8 +93,12 @@ public class ZipExtraFieldTest extends TestCase {
             zf = new ZipFile(f);
             ZipEntry ze = zf.getEntry("x");
             assertNotNull(ze);
-            assertEquals(1, ze.getExtraFields().length);
+            assertEquals(expectZip64 ? 2 : 1, ze.getExtraFields().length);
             assertTrue(ze.getExtraFields()[0] instanceof JarMarker);
+            if (expectZip64) {
+                assertTrue(ze.getExtraFields()[1]
+                           instanceof Zip64ExtendedInformationExtraField);
+            }
         } finally {
             ZipFile.closeQuietly(zf);
             if (f.exists()) {
@@ -88,5 +106,4 @@ public class ZipExtraFieldTest extends TestCase {
             }
         }
     }
-
 }

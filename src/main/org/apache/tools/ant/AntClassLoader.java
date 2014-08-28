@@ -33,6 +33,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 import java.util.Vector;
 import java.util.jar.Attributes;
@@ -48,6 +49,7 @@ import org.apache.tools.ant.util.LoaderUtils;
 import org.apache.tools.ant.util.ReflectUtil;
 import org.apache.tools.ant.util.VectorSet;
 import org.apache.tools.ant.launch.Locator;
+import org.apache.tools.zip.ZipLong;
 
 /**
  * Used to load classes within ant with a different classpath from
@@ -79,7 +81,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @see AntClassLoader#findResources(String)
      * @see java.lang.ClassLoader#getResources(String)
      */
-    private class ResourceEnumeration implements Enumeration {
+    private class ResourceEnumeration implements Enumeration<URL> {
         /**
          * The name of the resource being searched for.
          */
@@ -125,8 +127,11 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
          *
          * @return the next resource in the enumeration
          */
-        public Object nextElement() {
+        public URL nextElement() {
             URL ret = this.nextResource;
+            if (ret == null) {
+                throw new NoSuchElementException();
+            }
             findNextResource();
             return ret;
         }
@@ -167,7 +172,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * The components of the classpath that the classloader searches
      * for classes.
      */
-    private Vector pathComponents  = new VectorSet();
+    private Vector<File> pathComponents  = new VectorSet<File>();
 
     /**
      * The project to which this class loader belongs.
@@ -185,14 +190,14 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * loader regardless of whether the parent class loader is being searched
      * first or not.
      */
-    private Vector systemPackages = new Vector();
+    private Vector<String> systemPackages = new Vector<String>();
 
     /**
      * These are the package roots that are to be loaded by this class loader
      * regardless of whether the parent class loader is being searched first
      * or not.
      */
-    private Vector loaderPackages = new Vector();
+    private Vector<String> loaderPackages = new Vector<String>();
 
     /**
      * Whether or not this classloader will ignore the base
@@ -210,10 +215,10 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
     /**
      * A hashtable of zip files opened by the classloader (File to JarFile).
      */
-    private Hashtable jarFiles = new Hashtable();
+    private Hashtable<File, JarFile> jarFiles = new Hashtable<File, JarFile>();
 
     /** Static map of jar file/time to manifest class-path entries */
-    private static Map/*<String,String>*/ pathMap = Collections.synchronizedMap(new HashMap());
+    private static Map<String,String> pathMap = Collections.synchronizedMap(new HashMap<String, String>());
 
     /**
      * The context loader saved when setting the thread's current
@@ -531,16 +536,16 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      *         separated by the path separator for the system.
      */
     public String getClasspath() {
-        StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         boolean firstPass = true;
-        Enumeration componentEnum = pathComponents.elements();
+        Enumeration<File> componentEnum = pathComponents.elements();
         while (componentEnum.hasMoreElements()) {
             if (!firstPass) {
                 sb.append(System.getProperty("path.separator"));
             } else {
                 firstPass = false;
             }
-            sb.append(((File) componentEnum.nextElement()).getAbsolutePath());
+            sb.append(componentEnum.nextElement().getAbsolutePath());
         }
         return sb.toString();
     }
@@ -568,13 +573,13 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @deprecated since 1.6.x.
      *             Use Class.forName with initialize=true instead.
      */
-    public static void initializeClass(Class theClass) {
+    public static void initializeClass(Class<?> theClass) {
         // ***HACK*** We ask the VM to create an instance
         // by voluntarily providing illegal arguments to force
         // the VM to run the class' static initializer, while
         // at the same time not running a valid constructor.
 
-        final Constructor[] cons = theClass.getDeclaredConstructors();
+        final Constructor<?>[] cons = theClass.getDeclaredConstructors();
         //At least one constructor is guaranteed to be there, but check anyway.
         if (cons != null) {
             if (cons.length > 0 && cons[0] != null) {
@@ -642,10 +647,10 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @exception ClassNotFoundException if the requested class does not exist
      *                                   on this loader's classpath.
      */
-    public Class forceLoadClass(String classname) throws ClassNotFoundException {
+    public Class<?> forceLoadClass(String classname) throws ClassNotFoundException {
         log("force loading " + classname, Project.MSG_DEBUG);
 
-        Class theClass = findLoadedClass(classname);
+        Class<?> theClass = findLoadedClass(classname);
 
         if (theClass == null) {
             theClass = findClass(classname);
@@ -669,10 +674,10 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @exception ClassNotFoundException if the requested class does not exist
      * on this loader's classpath.
      */
-    public Class forceLoadSystemClass(String classname) throws ClassNotFoundException {
+    public Class<?> forceLoadSystemClass(String classname) throws ClassNotFoundException {
         log("force system loading " + classname, Project.MSG_DEBUG);
 
-        Class theClass = findLoadedClass(classname);
+        Class<?> theClass = findLoadedClass(classname);
 
         if (theClass == null) {
             theClass = findBaseClass(classname);
@@ -735,9 +740,9 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
         // find the class we want.
         InputStream stream = null;
 
-        Enumeration e = pathComponents.elements();
+        Enumeration<File> e = pathComponents.elements();
         while (e.hasMoreElements() && stream == null) {
-            File pathComponent = (File) e.nextElement();
+            File pathComponent = e.nextElement();
             stream = getResourceStream(pathComponent, name);
         }
         return stream;
@@ -820,19 +825,19 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
         // designated to use a specific loader first
         // (this one or the parent one)
 
-        // XXX - shouldn't this always return false in isolated mode?
+        // TODO - shouldn't this always return false in isolated mode?
 
         boolean useParentFirst = parentFirst;
 
-        for (Enumeration e = systemPackages.elements(); e.hasMoreElements();) {
-            String packageName = (String) e.nextElement();
+        for (Enumeration<String> e = systemPackages.elements(); e.hasMoreElements();) {
+            String packageName = e.nextElement();
             if (resourceName.startsWith(packageName)) {
                 useParentFirst = true;
                 break;
             }
         }
-        for (Enumeration e = loaderPackages.elements(); e.hasMoreElements();) {
-            String packageName = (String) e.nextElement();
+        for (Enumeration<String> e = loaderPackages.elements(); e.hasMoreElements();) {
+            String packageName = e.nextElement();
             if (resourceName.startsWith(packageName)) {
                 useParentFirst = false;
                 break;
@@ -877,9 +882,9 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
         } else {
             // try and load from this loader if the parent either didn't find
             // it or wasn't consulted.
-            Enumeration e = pathComponents.elements();
+            Enumeration<File> e = pathComponents.elements();
             while (e.hasMoreElements() && url == null) {
-                File pathComponent = (File) e.nextElement();
+                File pathComponent = e.nextElement();
                 url = getResourceURL(pathComponent, name);
                 if (url != null) {
                     log("Resource " + name + " loaded from ant loader", Project.MSG_DEBUG);
@@ -913,7 +918,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      *
      * @since Ant 1.8.0
      */
-    public Enumeration/*<URL>*/ getNamedResources(String name)
+    public Enumeration<URL> getNamedResources(String name)
         throws IOException {
         return findResources(name, false);
     }
@@ -927,7 +932,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @return an enumeration of URLs for the resources
      * @exception IOException if I/O errors occurs (can't happen)
      */
-    protected Enumeration/*<URL>*/ findResources(String name) throws IOException {
+    protected Enumeration<URL> findResources(String name) throws IOException {
         return findResources(name, true);
     }
 
@@ -943,11 +948,11 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @return an enumeration of URLs for the resources
      * @exception IOException if I/O errors occurs (can't happen)
      */
-    protected Enumeration/*<URL>*/ findResources(String name,
+    protected Enumeration<URL> findResources(String name,
                                                  boolean parentHasBeenSearched)
         throws IOException {
-        Enumeration/*<URL>*/ mine = new ResourceEnumeration(name);
-        Enumeration/*<URL>*/ base;
+        Enumeration<URL> mine = new ResourceEnumeration(name);
+        Enumeration<URL> base;
         if (parent != null && (!parentHasBeenSearched || parent != getParent())) {
             // Delegate to the parent:
             base = parent.getResources(name);
@@ -957,7 +962,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
         } else {
             // ClassLoader.this.parent is already delegated to for example from
             // ClassLoader.getResources, no need:
-            base = new CollectionUtils.EmptyEnumeration();
+            base = new CollectionUtils.EmptyEnumeration<URL>();
         }
         if (isParentFirst(name)) {
             // Normal case.
@@ -999,6 +1004,13 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
             } else {
                 if (jarFile == null) {
                     if (file.exists()) {
+                        if (!isZip(file)) {
+                            String msg = "CLASSPATH element " + file
+                                + " is not a JAR.";
+                            log(msg, Project.MSG_WARN);
+                            System.err.println(msg);
+                            return null;
+                        }
                         jarFile = new JarFile(file);
                         jarFiles.put(file, jarFile);
                     } else {
@@ -1045,13 +1057,13 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * on the system classpath (when not in isolated mode) or this loader's
      * classpath.
      */
-    protected synchronized Class loadClass(String classname, boolean resolve)
+    protected synchronized Class<?> loadClass(String classname, boolean resolve)
             throws ClassNotFoundException {
         // 'sync' is needed - otherwise 2 threads can load the same class
         // twice, resulting in LinkageError: duplicated class definition.
         // findLoadedClass avoids that, but without sync it won't work.
 
-        Class theClass = findLoadedClass(classname);
+        Class<?> theClass = findLoadedClass(classname);
         if (theClass != null) {
             return theClass;
         }
@@ -1109,7 +1121,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      *
      * @throws IOException if the class data cannot be read.
      */
-    protected Class defineClassFromData(File container, byte[] classData, String classname)
+    protected Class<?> defineClassFromData(File container, byte[] classData, String classname)
             throws IOException {
         definePackage(container, classname);
         ProtectionDomain currentPd = Project.class.getProtectionDomain();
@@ -1282,7 +1294,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @exception SecurityException if there is a security problem while
      * reading the class from the stream.
      */
-    private Class getClassFromStream(InputStream stream, String classname, File container)
+    private Class<?> getClassFromStream(InputStream stream, String classname, File container)
             throws IOException, SecurityException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         int bytesRead = -1;
@@ -1306,7 +1318,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @exception ClassNotFoundException if the requested class does not exist
      *                                   on this loader's classpath.
      */
-    public Class findClass(String name) throws ClassNotFoundException {
+    public Class<?> findClass(String name) throws ClassNotFoundException {
         log("Finding class " + name, Project.MSG_DEBUG);
         return findClassInComponents(name);
     }
@@ -1333,35 +1345,33 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @exception ClassNotFoundException if the requested class does not exist
      * on this loader's classpath.
      */
-    private Class findClassInComponents(String name)
+    private Class<?> findClassInComponents(String name)
         throws ClassNotFoundException {
         // we need to search the components of the path to see if
         // we can find the class we want.
-        InputStream stream = null;
         String classFilename = getClassFilename(name);
-        try {
-            Enumeration e = pathComponents.elements();
-            while (e.hasMoreElements()) {
-                File pathComponent = (File) e.nextElement();
-                try {
-                    stream = getResourceStream(pathComponent, classFilename);
-                    if (stream != null) {
-                        log("Loaded from " + pathComponent + " "
-                            + classFilename, Project.MSG_DEBUG);
-                        return getClassFromStream(stream, name, pathComponent);
-                    }
-                } catch (SecurityException se) {
-                    throw se;
-                } catch (IOException ioe) {
-                    // ioe.printStackTrace();
-                    log("Exception reading component " + pathComponent + " (reason: "
-                            + ioe.getMessage() + ")", Project.MSG_VERBOSE);
+        Enumeration<File> e = pathComponents.elements();
+        while (e.hasMoreElements()) {
+            File pathComponent = (File) e.nextElement();
+            InputStream stream = null;
+            try {
+                stream = getResourceStream(pathComponent, classFilename);
+                if (stream != null) {
+                    log("Loaded from " + pathComponent + " "
+                        + classFilename, Project.MSG_DEBUG);
+                    return getClassFromStream(stream, name, pathComponent);
                 }
+            } catch (SecurityException se) {
+                throw se;
+            } catch (IOException ioe) {
+                // ioe.printStackTrace();
+                log("Exception reading component " + pathComponent + " (reason: "
+                        + ioe.getMessage() + ")", Project.MSG_VERBOSE);
+            } finally {
+                FileUtils.close(stream);
             }
-            throw new ClassNotFoundException(name);
-        } finally {
-            FileUtils.close(stream);
         }
+        throw new ClassNotFoundException(name);
     }
 
     /**
@@ -1379,7 +1389,7 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * @exception ClassNotFoundException if the requested class does not exist
      * on this loader's classpath.
      */
-    private Class findBaseClass(String name) throws ClassNotFoundException {
+    private Class<?> findBaseClass(String name) throws ClassNotFoundException {
         return parent == null ? findSystemClass(name) : parent.loadClass(name);
     }
 
@@ -1388,15 +1398,15 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * files are closed.
      */
     public synchronized void cleanup() {
-        for (Enumeration e = jarFiles.elements(); e.hasMoreElements();) {
-            JarFile jarFile = (JarFile) e.nextElement();
+        for (Enumeration<JarFile> e = jarFiles.elements(); e.hasMoreElements();) {
+            JarFile jarFile = e.nextElement();
             try {
                 jarFile.close();
             } catch (IOException ioe) {
                 // ignore
             }
         }
-        jarFiles = new Hashtable();
+        jarFiles = new Hashtable<File, JarFile>();
         if (project != null) {
             project.removeBuildListener(this);
         }
@@ -1508,10 +1518,10 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
      * here
      */
     public void addJavaLibraries() {
-        Vector packages = JavaEnvUtils.getJrePackages();
-        Enumeration e = packages.elements();
+        Vector<String> packages = JavaEnvUtils.getJrePackages();
+        Enumeration<String> e = packages.elements();
         while (e.hasMoreElements()) {
-            String packageName = (String) e.nextElement();
+            String packageName = e.nextElement();
             addSystemPackageRoot(packageName);
         }
     }
@@ -1524,8 +1534,8 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
         return "AntClassLoader[" + getClasspath() + "]";
     }
 
-    private static Class subClassToLoad = null;
-    private static final Class[] CONSTRUCTOR_ARGS = new Class[] {
+    private static Class<?> subClassToLoad = null;
+    private static final Class<?>[] CONSTRUCTOR_ARGS = new Class[] {
         ClassLoader.class, Project.class, Path.class, Boolean.TYPE
     };
 
@@ -1557,6 +1567,40 @@ public class AntClassLoader extends ClassLoader implements SubBuildListener {
                                         });
         }
         return new AntClassLoader(parent, project, path, parentFirst);
+    }
+
+    private static final ZipLong EOCD_SIG = new ZipLong(0X06054B50L);
+    private static final ZipLong SINGLE_SEGMENT_SPLIT_MARKER =
+        new ZipLong(0X30304B50L);
+
+    private static boolean isZip(File file) throws IOException {
+        byte[] sig = new byte[4];
+        if (readFully(file, sig)) {
+            ZipLong start = new ZipLong(sig);
+            return ZipLong.LFH_SIG.equals(start) // normal file
+                || EOCD_SIG.equals(start) // empty zip
+                || ZipLong.DD_SIG.equals(start) // split zip
+                || SINGLE_SEGMENT_SPLIT_MARKER.equals(start);
+        }
+        return false;
+    }
+
+    private static boolean readFully(File f, byte[] b) throws IOException {
+        FileInputStream fis = new FileInputStream(f);
+        try {
+            final int len = b.length;
+            int count = 0, x = 0;
+            while (count != len) {
+                x = fis.read(b, count, len - count);
+                if (x == -1) {
+                    break;
+                }
+                count += x;
+            }
+            return count == len;
+        } finally {
+            fis.close();
+        }
     }
 
 }

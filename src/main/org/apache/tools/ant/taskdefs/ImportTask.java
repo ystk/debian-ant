@@ -27,6 +27,7 @@ import org.apache.tools.ant.types.Resource;
 import org.apache.tools.ant.types.ResourceCollection;
 import org.apache.tools.ant.types.resources.FileProvider;
 import org.apache.tools.ant.types.resources.FileResource;
+import org.apache.tools.ant.types.resources.URLProvider;
 import org.apache.tools.ant.types.resources.URLResource;
 import org.apache.tools.ant.types.resources.Union;
 import org.apache.tools.ant.util.FileUtils;
@@ -34,7 +35,6 @@ import org.apache.tools.ant.util.FileUtils;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.Vector;
 
 /**
@@ -65,7 +65,7 @@ import java.util.Vector;
 public class ImportTask extends Task {
     private String file;
     private boolean optional;
-    private String targetPrefix;
+    private String targetPrefix = ProjectHelper.USE_PROJECT_NAME_AS_TARGET_PREFIX;
     private String prefixSeparator = ".";
     private final Union resources = new Union();
     private static final FileUtils FILE_UTILS = FileUtils.getFileUtils();
@@ -142,7 +142,7 @@ public class ImportTask extends Task {
             throw new BuildException("import requires support in ProjectHelper");
         }
 
-        Vector importStack = helper.getImportStack();
+        Vector<Object> importStack = helper.getImportStack();
 
         if (importStack.size() == 0) {
             // this happens if ant is used with a project
@@ -159,14 +159,14 @@ public class ImportTask extends Task {
         if (fromFileAttribute != null) {
             resources.add(fromFileAttribute);
         }
-        for (Iterator i = resourcesToImport.iterator(); i.hasNext(); ) {
-            importResource(helper, (Resource) i.next());
+        for (Resource r : resourcesToImport) {
+            importResource(helper, r);
         }
     }
 
     private void importResource(ProjectHelper helper,
                                 Resource importedResource) {
-        Vector importStack = helper.getImportStack();
+        Vector<Object> importStack = helper.getImportStack();
 
         getProject().log("Importing file " + importedResource + " from "
                          + getLocation().getFileName(), Project.MSG_VERBOSE);
@@ -183,33 +183,30 @@ public class ImportTask extends Task {
             }
         }
 
-        File importedFile = null;
-        FileProvider fp = (FileProvider) importedResource.as(FileProvider.class);
-        if (fp != null) {
-            importedFile = fp.getFile();
-        }
-
         if (!isInIncludeMode() &&
-            (importStack.contains(importedResource)
-             || (importedFile != null && importStack.contains(importedFile))
-             )
-            ) {
+            hasAlreadyBeenImported(importedResource, importStack)) {
             getProject().log(
                 "Skipped already imported file:\n   "
                 + importedResource + "\n", Project.MSG_VERBOSE);
             return;
         }
 
-        // nested invokations are possible like an imported file
+        // nested invocations are possible like an imported file
         // importing another one
         String oldPrefix = ProjectHelper.getCurrentTargetPrefix();
         boolean oldIncludeMode = ProjectHelper.isInIncludeMode();
         String oldSep = ProjectHelper.getCurrentPrefixSeparator();
         try {
-            String prefix = targetPrefix;
+            String prefix;
             if (isInIncludeMode() && oldPrefix != null
                 && targetPrefix != null) {
                 prefix = oldPrefix + oldSep + targetPrefix;
+            } else if (isInIncludeMode()) {
+                prefix = targetPrefix;
+            } else if (!ProjectHelper.USE_PROJECT_NAME_AS_TARGET_PREFIX.equals(targetPrefix)) {
+                prefix = targetPrefix;
+            } else {
+                prefix = oldPrefix;
             }
             setProjectHelperProps(prefix, prefixSeparator,
                                   isInIncludeMode());
@@ -243,6 +240,10 @@ public class ImportTask extends Task {
         // *not* the current directory (same as entity includes).
 
         if (file != null) {
+            if (isExistingAbsoluteFile(file)) {
+                return new FileResource(new File(file));
+            }
+
             File buildFile =
                 new File(getLocation().getFileName()).getAbsoluteFile();
             if (buildFile.exists()) {
@@ -266,6 +267,54 @@ public class ImportTask extends Task {
         return null;
     }
 
+    private boolean isExistingAbsoluteFile(String name) {
+        File f = new File(name);
+        return f.isAbsolute() && f.exists();
+    }
+
+    private boolean hasAlreadyBeenImported(Resource importedResource,
+                                           Vector<Object> importStack) {
+        File importedFile = null;
+        FileProvider fp = importedResource.as(FileProvider.class);
+        if (fp != null) {
+            importedFile = fp.getFile();
+        }
+        URL importedURL = null;
+        URLProvider up = importedResource.as(URLProvider.class);
+        if (up != null) {
+            importedURL = up.getURL();
+        }
+        for (Object o : importStack) {
+            if (isOneOf(o, importedResource, importedFile, importedURL)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isOneOf(Object o, Resource importedResource,
+                            File importedFile, URL importedURL) {
+        if (o.equals(importedResource) || o.equals(importedFile)
+            || o.equals(importedURL)) {
+            return true;
+        }
+        if (o instanceof Resource) {
+            if (importedFile != null) {
+                FileProvider fp = ((Resource) o).as(FileProvider.class);
+                if (fp != null && fp.getFile().equals(importedFile)) {
+                    return true;
+                }
+            }
+            if (importedURL != null) {
+                URLProvider up = ((Resource) o).as(URLProvider.class);
+                if (up != null && up.getURL().equals(importedURL)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * Whether the task is in include (as opposed to import) mode.
      *
@@ -286,7 +335,7 @@ public class ImportTask extends Task {
 
     /**
      * Sets a bunch of Thread-local ProjectHelper properties.
-     * 
+     *
      * @since Ant 1.8.0
      */
     private static void setProjectHelperProps(String prefix,

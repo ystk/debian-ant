@@ -144,9 +144,7 @@ public final class BatchTest extends BaseTest {
      */
     private String[] getFilenames() {
         Vector v = new Vector();
-        Iterator iter = resources.iterator();
-        while (iter.hasNext()) {
-            Resource r = (Resource) iter.next();
+        for (Resource r : resources) {
             if (r.isExists()) {
                 String pathname = r.getName();
                 if (pathname.endsWith(".java")) {
@@ -193,6 +191,7 @@ public final class BatchTest extends BaseTest {
         test.setTodir(this.destDir);
         test.setFailureProperty(failureProperty);
         test.setErrorProperty(errorProperty);
+        test.setSkipNonTests(isSkipNonTests());
         Enumeration list = this.formatters.elements();
         while (list.hasMoreElements()) {
             test.addFormatter((FormatterElement) list.nextElement());

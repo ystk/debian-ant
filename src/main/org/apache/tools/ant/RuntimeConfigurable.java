@@ -25,10 +25,13 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Iterator;
+import java.util.Map.Entry;
+
+import org.apache.tools.ant.attribute.EnableAttribute;
 
 import org.apache.tools.ant.util.CollectionUtils;
+import org.apache.tools.ant.taskdefs.MacroDef.Attribute;
+import org.apache.tools.ant.taskdefs.MacroInstance;
 import org.xml.sax.AttributeList;
 import org.xml.sax.helpers.AttributeListImpl;
 
@@ -43,21 +46,19 @@ public class RuntimeConfigurable implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** Empty Hashtable. */
-    private static final Hashtable EMPTY_HASHTABLE = new Hashtable(0);
+    private static final Hashtable<String, Object> EMPTY_HASHTABLE =
+            new Hashtable<String, Object>(0);
 
     /** Name of the element to configure. */
     private String elementTag = null;
 
     /** List of child element wrappers. */
-    private List/*<RuntimeConfigurable>*/ children = null;
+    private List<RuntimeConfigurable> children = null;
 
     /** The element to configure. It is only used during
      * maybeConfigure.
      */
     private transient Object wrappedObject = null;
-
-    /** the creator used to make the wrapped object */
-    private transient IntrospectionHelper.Creator creator;
 
     /**
      * XML attributes for the element.
@@ -65,9 +66,12 @@ public class RuntimeConfigurable implements Serializable {
      */
     private transient AttributeList attributes;
 
+    // The following is set to true if any of the attributes are namespaced
+    private transient boolean namespacedAttribute = false;
+
     /** Attribute names and values. While the XML spec doesn't require
      *  preserving the order ( AFAIK ), some ant tests do rely on the
-     *  exact order. 
+     *  exact order.
      * The only exception to this order is the treatment of
      * refid. A number of datatypes check if refid is set
      * when other attributes are set. This check will not
@@ -75,7 +79,7 @@ public class RuntimeConfigurable implements Serializable {
      * the "refid" attribute, so now (ANT 1.7) the refid
      * attribute will be processed first.
      */
-    private LinkedHashMap/*<String, String>*/ attributeMap = null;
+    private LinkedHashMap<String, Object> attributeMap = null;
 
     /** Text appearing within the element. */
     private StringBuffer characters = null;
@@ -114,6 +118,109 @@ public class RuntimeConfigurable implements Serializable {
         proxyConfigured = false;
     }
 
+    private static class EnableAttributeConsumer {
+        public void add(EnableAttribute b) {
+            // Ignore
+        }
+    }
+
+    /**
+     * contains the attribute component name and boolean restricted set to true when
+     * the attribute is in one of the name spaces managed by ant (if and unless currently)
+     * @since Ant 1.9.3
+     */
+    private static class AttributeComponentInformation {
+        String componentName;
+        boolean restricted;
+
+        private AttributeComponentInformation(String componentName, boolean restricted) {
+            this.componentName = componentName;
+            this.restricted = restricted;
+        }
+
+        public String getComponentName() {
+            return componentName;
+        }
+
+        public boolean isRestricted() {
+            return restricted;
+        }
+    }
+
+    /**
+     *
+     * @param name    the name of the attribute.
+     * @param componentHelper current component helper
+     * @return AttributeComponentInformation instance
+     */
+    private AttributeComponentInformation isRestrictedAttribute(String name, ComponentHelper componentHelper) {
+        if (name.indexOf(':') == -1) {
+            return new AttributeComponentInformation(null, false);
+        }
+        String componentName = attrToComponent(name);
+        String ns = ProjectHelper.extractUriFromComponentName(componentName);
+        if (componentHelper.getRestrictedDefinitions(
+                ProjectHelper.nsToComponentName(ns)) == null) {
+            return new AttributeComponentInformation(null, false);
+        }
+        return new AttributeComponentInformation(componentName, true);
+    }
+
+    /**
+     * Check if an UE is enabled.
+     * This looks tru the attributes and checks if there
+     * are any Ant attributes, and if so, the method calls the
+     * isEnabled() method on them.
+     * @param owner the UE that owns this RC.
+     * @return true if enabled, false if any of the ant attribures return
+     *              false.
+     * @since 1.9.1
+     */
+    public boolean isEnabled(UnknownElement owner) {
+        if (!namespacedAttribute) {
+            return true;
+        }
+        ComponentHelper componentHelper = ComponentHelper
+            .getComponentHelper(owner.getProject());
+
+        IntrospectionHelper ih
+            = IntrospectionHelper.getHelper(
+                owner.getProject(), EnableAttributeConsumer.class);
+        for (int i = 0; i < attributeMap.keySet().size(); ++i) {
+            String name = (String) attributeMap.keySet().toArray()[i];
+            AttributeComponentInformation attributeComponentInformation = isRestrictedAttribute(name, componentHelper);
+            if (!attributeComponentInformation.isRestricted())  {
+                continue;
+            }
+            String value = (String) attributeMap.get(name);
+            EnableAttribute enable = null;
+            try {
+                enable = (EnableAttribute)
+                    ih.createElement(
+                        owner.getProject(), new EnableAttributeConsumer(),
+                        attributeComponentInformation.getComponentName());
+            } catch (BuildException ex) {
+                throw new BuildException(
+                    "Unsupported attribute " + attributeComponentInformation.getComponentName());
+            }
+            if (enable == null) {
+                continue;
+            }
+            value = owner.getProject().replaceProperties(value); // FixMe: need to make config
+            if (!enable.isEnabled(owner, value)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String attrToComponent(String a) {
+        // need to remove the prefix
+        int p1 = a.lastIndexOf(':');
+        int p2 = a.lastIndexOf(':', p1 - 1);
+        return a.substring(0, p2) + a.substring(p1);
+    }
+
     /**
      * Sets the creator of the element to be configured
      * used to store the element in the parent.
@@ -121,7 +228,6 @@ public class RuntimeConfigurable implements Serializable {
      * @param creator the creator object.
      */
     synchronized void setCreator(IntrospectionHelper.Creator creator) {
-        this.creator = creator;
     }
 
     /**
@@ -179,14 +285,28 @@ public class RuntimeConfigurable implements Serializable {
      * @param value the attribute's value.
      */
     public synchronized void setAttribute(String name, String value) {
+        if (name.indexOf(':') != -1) {
+            namespacedAttribute = true;
+        }
+        setAttribute(name, (Object) value);
+    }
+
+    /**
+     * Set an attribute to a given value.
+     *
+     * @param name the name of the attribute.
+     * @param value the attribute's value.
+     * @since 1.9
+     */
+    public synchronized void setAttribute(String name, Object value) {
         if (name.equalsIgnoreCase(ProjectHelper.ANT_TYPE)) {
-            this.polyType = value;
+            this.polyType = value == null ? null : value.toString();
         } else {
             if (attributeMap == null) {
-                attributeMap = new LinkedHashMap();
+                attributeMap = new LinkedHashMap<String, Object>();
             }
             if (name.equalsIgnoreCase("refid") && !attributeMap.isEmpty()) {
-                LinkedHashMap newAttributeMap = new LinkedHashMap();
+                LinkedHashMap<String, Object> newAttributeMap = new LinkedHashMap<String, Object>();
                 newAttributeMap.put(name, value);
                 newAttributeMap.putAll(attributeMap);
                 attributeMap = newAttributeMap;
@@ -194,7 +314,7 @@ public class RuntimeConfigurable implements Serializable {
                 attributeMap.put(name, value);
             }
             if (name.equals("id")) {
-                this.id = value;
+                this.id = value == null ? null : value.toString();
             }
         }
     }
@@ -213,9 +333,9 @@ public class RuntimeConfigurable implements Serializable {
      * @return Attribute name to attribute value map.
      * @since Ant 1.6
      */
-    public synchronized Hashtable getAttributeMap() {
+    public synchronized Hashtable<String, Object> getAttributeMap() {
         return (attributeMap == null)
-            ? EMPTY_HASHTABLE : new Hashtable(attributeMap);
+            ? EMPTY_HASHTABLE : new Hashtable<String, Object>(attributeMap);
     }
 
     /**
@@ -236,7 +356,7 @@ public class RuntimeConfigurable implements Serializable {
      *              Must not be <code>null</code>.
      */
     public synchronized void addChild(RuntimeConfigurable child) {
-        children = (children == null) ? new ArrayList() : children;
+        children = (children == null) ? new ArrayList<RuntimeConfigurable>() : children;
         children.add(child);
     }
 
@@ -249,7 +369,7 @@ public class RuntimeConfigurable implements Serializable {
      *         list.
      */
     synchronized RuntimeConfigurable getChild(int index) {
-        return (RuntimeConfigurable) children.get(index);
+        return children.get(index);
     }
 
     /**
@@ -257,8 +377,8 @@ public class RuntimeConfigurable implements Serializable {
      * @return an enumeration of the child wrappers.
      * @since Ant 1.6
      */
-    public synchronized Enumeration getChildren() {
-        return (children == null) ? new CollectionUtils.EmptyEnumeration()
+    public synchronized Enumeration<RuntimeConfigurable> getChildren() {
+        return (children == null) ? new CollectionUtils.EmptyEnumeration<RuntimeConfigurable>()
             : Collections.enumeration(children);
     }
 
@@ -375,15 +495,35 @@ public class RuntimeConfigurable implements Serializable {
 
         IntrospectionHelper ih =
             IntrospectionHelper.getHelper(p, target.getClass());
-
+         ComponentHelper componentHelper = ComponentHelper.getComponentHelper(p);
         if (attributeMap != null) {
-            for (Iterator iter = attributeMap.entrySet().iterator(); iter.hasNext();) {
-                Map.Entry entry = (Map.Entry) iter.next();
-                String name = (String) entry.getKey();
-                String value = (String) entry.getValue();
-
-                // reflect these into the target
-                Object attrValue = PropertyHelper.getPropertyHelper(p).parseProperties(value);
+            for (Entry<String, Object> entry : attributeMap.entrySet()) {
+                String name = entry.getKey();
+                // skip restricted attributes such as if:set
+                AttributeComponentInformation attributeComponentInformation = isRestrictedAttribute(name, componentHelper);
+                if (attributeComponentInformation.isRestricted())  {
+                    continue;
+                }
+                Object value = entry.getValue();
+                // reflect these into the target, defer for
+                // MacroInstance where properties are expanded for the
+                // nested sequential
+                Object attrValue;
+                if (value instanceof Evaluable) {
+                    attrValue = ((Evaluable) value).eval();
+                } else {
+                    attrValue = PropertyHelper.getPropertyHelper(p).parseProperties(value.toString());
+                }
+                if (target instanceof MacroInstance) {
+                    for (Attribute attr : ((MacroInstance) target).getMacroDef().getAttributes()) {
+                        if (attr.getName().equals(name)) {
+                            if (!attr.isDoubleExpanding()) {
+                                attrValue = value;
+                            }
+                            break;
+                        }
+                    }
+                }
                 try {
                     ih.setAttribute(p, target, name, attrValue);
                 } catch (UnsupportedAttributeException be) {
@@ -438,8 +578,7 @@ public class RuntimeConfigurable implements Serializable {
     public void applyPreSet(RuntimeConfigurable r) {
         // Attributes
         if (r.attributeMap != null) {
-            for (Iterator i = r.attributeMap.keySet().iterator(); i.hasNext();) {
-                String name = (String) i.next();
+            for (String name : r.attributeMap.keySet()) {
                 if (attributeMap == null || attributeMap.get(name) == null) {
                     setAttribute(name, (String) r.attributeMap.get(name));
                 }
@@ -451,7 +590,7 @@ public class RuntimeConfigurable implements Serializable {
 
         // Children (this is a shadow of UnknownElement#children)
         if (r.children != null) {
-            List newChildren = new ArrayList();
+            List<RuntimeConfigurable> newChildren = new ArrayList<RuntimeConfigurable>();
             newChildren.addAll(r.children);
             if (children != null) {
                 newChildren.addAll(children);

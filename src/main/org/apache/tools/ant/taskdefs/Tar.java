@@ -198,7 +198,8 @@ public class Tar extends MatchingTask {
      * <li>  truncate - paths are truncated to the maximum length
      * <li>  fail - paths greater than the maximum cause a build exception
      * <li>  warn - paths greater than the maximum cause a warning and GNU is used
-     * <li>  gnu - GNU extensions are used for any paths greater than the maximum.
+     * <li>  gnu - extensions used by older versions of GNU tar are used for any paths greater than the maximum.
+     * <li>  posix - use POSIX PAX extension headers for any paths greater than the maximum.  Supported by all modern tar implementations.
      * <li>  omit - paths greater than the maximum are omitted from the archive
      * </ul>
      * @param mode the mode to handle long file names.
@@ -280,7 +281,8 @@ public class Tar extends MatchingTask {
             }
 
             File parent = tarFile.getParentFile();
-            if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            if (parent != null && !parent.isDirectory()
+                && !(parent.mkdirs() || parent.isDirectory())) {
                 throw new BuildException("Failed to create missing parent"
                                          + " directory for " + tarFile);
             }
@@ -299,6 +301,8 @@ public class Tar extends MatchingTask {
                 } else if (longFileMode.isFailMode()
                             || longFileMode.isOmitMode()) {
                     tOut.setLongFileMode(TarOutputStream.LONGFILE_ERROR);
+                } else if (longFileMode.isPosixMode()) {
+                    tOut.setLongFileMode(TarOutputStream.LONGFILE_POSIX);
                 } else {
                     // warn or GNU
                     tOut.setLongFileMode(TarOutputStream.LONGFILE_GNU);
@@ -568,11 +572,9 @@ public class Tar extends MatchingTask {
         } else if (rc.isFilesystemOnly()) {
             HashSet basedirs = new HashSet();
             HashMap basedirToFilesMap = new HashMap();
-            Iterator iter = rc.iterator();
-            while (iter.hasNext()) {
-                Resource res = (Resource) iter.next();
+            for (Resource res : rc) {
                 FileResource r = ResourceUtils
-                    .asFileResource((FileProvider) res.as(FileProvider.class));
+                    .asFileResource(res.as(FileProvider.class));
                 File base = r.getBaseDir();
                 if (base == null) {
                     base = Copy.NULL_FILE_PLACEHOLDER;
@@ -589,7 +591,7 @@ public class Tar extends MatchingTask {
                     files.add(r.getName());
                 }
             }
-            iter = basedirs.iterator();
+            Iterator iter = basedirs.iterator();
             while (iter.hasNext()) {
                 File base = (File) iter.next();
                 Vector f = (Vector) basedirToFilesMap.get(base);
@@ -599,9 +601,9 @@ public class Tar extends MatchingTask {
                           files);
             }
         } else { // non-file resources
-            Iterator iter = rc.iterator();
+            Iterator<Resource> iter = rc.iterator();
             while (upToDate && iter.hasNext()) {
-                Resource r = (Resource) iter.next();
+                Resource r = iter.next();
                 upToDate = archiveIsUpToDate(r);
             }
         }
@@ -609,7 +611,7 @@ public class Tar extends MatchingTask {
     }
 
     /**
-     * Checks whether the archive is out-of-date with respect to the
+     * <p>Checks whether the archive is out-of-date with respect to the
      * given files, ensures that the archive won't contain itself.</p>
      *
      * @param basedir base directory for file names
@@ -667,16 +669,12 @@ public class Tar extends MatchingTask {
                 tarFile(f, tOut, name, tfs);
             }
         } else if (rc.isFilesystemOnly()) {
-            Iterator iter = rc.iterator();
-            while (iter.hasNext()) {
-                Resource r = (Resource) iter.next();
-                File f = ((FileProvider) r.as(FileProvider.class)).getFile();
+            for (Resource r : rc) {
+                File f = r.as(FileProvider.class).getFile();
                 tarFile(f, tOut, f.getName(), tfs);
             }
         } else { // non-file resources
-            Iterator iter = rc.iterator();
-            while (iter.hasNext()) {
-                Resource r = (Resource) iter.next();
+            for (Resource r : rc) {
                 tarResource(r, tOut, r.getName(), tfs);
             }
         }
@@ -850,9 +848,12 @@ public class Tar extends MatchingTask {
             FAIL = "fail",
             TRUNCATE = "truncate",
             GNU = "gnu",
+            POSIX = "posix",
             OMIT = "omit";
 
-        private final String[] validModes = {WARN, FAIL, TRUNCATE, GNU, OMIT};
+        private final String[] validModes = {
+            WARN, FAIL, TRUNCATE, GNU, POSIX, OMIT
+        };
 
         /** Constructor, defaults to "warn" */
         public TarLongFileMode() {
@@ -900,6 +901,13 @@ public class Tar extends MatchingTask {
          */
         public boolean isOmitMode() {
             return OMIT.equalsIgnoreCase(getValue());
+        }
+
+        /**
+         * @return true if value is "posix".
+         */
+        public boolean isPosixMode() {
+            return POSIX.equalsIgnoreCase(getValue());
         }
     }
 

@@ -99,7 +99,7 @@ public class XMLValidateTask extends Task {
     private final Vector propertyList = new Vector();
 
     private XMLCatalog xmlCatalog = new XMLCatalog();
-    /** Message for sucessfull validation */
+    /** Message for successfull validation */
     public static final String MESSAGE_FILES_VALIDATED
         = " file(s) have been successfully validated.";
 
@@ -120,7 +120,7 @@ public class XMLValidateTask extends Task {
     /**
      * Specify how parser error are to be handled.
      * <p>
-     * If set to <code>true</true> (default), log a warn message for each SAX warn event.
+     * If set to <code>true</code> (default), log a warn message for each SAX warn event.
      * @param bool if set to <code>false</code> do not send warnings
      */
     public void setWarn(boolean bool) {
@@ -310,7 +310,8 @@ public class XMLValidateTask extends Task {
             }
         }
 
-        for (int i = 0; i < filesets.size(); i++) {
+        final int size = filesets.size();
+        for (int i = 0; i < size; i++) {
 
             FileSet fs = (FileSet) filesets.elementAt(i);
             DirectoryScanner ds = fs.getDirectoryScanner(getProject());
@@ -355,13 +356,15 @@ public class XMLValidateTask extends Task {
                 setFeature(XmlConstants.FEATURE_VALIDATION, true);
             }
             // set the feature from the attribute list
-            for (int i = 0; i < attributeList.size(); i++) {
+            final int attSize = attributeList.size();
+            for (int i = 0; i < attSize; i++) {
                 Attribute feature = (Attribute) attributeList.elementAt(i);
                 setFeature(feature.getName(), feature.getValue());
 
             }
             // Sets properties
-            for (int i = 0; i < propertyList.size(); i++) {
+            final int propSize = propertyList.size();
+            for (int i = 0; i < propSize; i++) {
                 final Property prop = (Property) propertyList.elementAt(i);
                 setProperty(prop.getName(), prop.getValue());
             }

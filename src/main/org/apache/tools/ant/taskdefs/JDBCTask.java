@@ -41,8 +41,9 @@ import org.apache.tools.ant.types.Reference;
  * <p>
  * The following example class prints the contents of the first column of each row in TableName.
  *</p>
- *<code><pre>
+ *<pre>
 package examples;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -72,10 +73,10 @@ public class SQLExampleTask extends JDBCTask {
 
         } finally {
             if (stmt != null) {
-                try {stmt.close();}catch (SQLException ingore) {}
+                try {stmt.close();}catch (SQLException ignore) {}
             }
             if (conn != null) {
-                try {conn.close();}catch (SQLException ingore) {}
+                try {conn.close();}catch (SQLException ignore) {}
             }
         }
     }
@@ -84,16 +85,11 @@ public class SQLExampleTask extends JDBCTask {
     }
 
 }
-
-
-</pre></code>
-
-
-
+</pre>
+ *
  * @since Ant 1.5
  *
  */
-
 public abstract class JDBCTask extends Task {
     private static final int HASH_TABLE_SIZE = 3;
 
@@ -102,7 +98,7 @@ public abstract class JDBCTask extends Task {
      * getting an OutOfMemoryError when calling this task
      * multiple times in a row.
      */
-    private static Hashtable loaderMap = new Hashtable(HASH_TABLE_SIZE);
+    private static Hashtable<String, AntClassLoader> LOADER_MAP = new Hashtable<String, AntClassLoader>(HASH_TABLE_SIZE);
 
     private boolean caching = true;
 
@@ -156,7 +152,7 @@ public abstract class JDBCTask extends Task {
      *
      * @since Ant 1.8.0
      */
-    private List/*<Property>*/ connectionProperties = new ArrayList();
+    private List<Property> connectionProperties = new ArrayList<Property>();
 
     /**
      * Sets the classpath for loading the driver.
@@ -303,8 +299,8 @@ public abstract class JDBCTask extends Task {
      * Get the cache of loaders and drivers.
      * @return a hashtable
      */
-    protected static Hashtable getLoaderMap() {
-        return loaderMap;
+    protected static Hashtable<String, AntClassLoader> getLoaderMap() {
+        return LOADER_MAP;
     }
 
     /**
@@ -352,9 +348,9 @@ public abstract class JDBCTask extends Task {
             info.put("user", getUserId());
             info.put("password", getPassword());
 
-            for (Iterator props = connectionProperties.iterator();
+            for (Iterator<Property> props = connectionProperties.iterator();
                  props.hasNext(); ) {
-                Property p = (Property) props.next();
+                Property p = props.next();
                 String name = p.getName();
                 String value = p.getValue();
                 if (name == null || value == null) {
@@ -401,7 +397,7 @@ public abstract class JDBCTask extends Task {
 
         Driver driverInstance = null;
         try {
-            Class dc;
+            Class<?> dc;
             if (classpath != null) {
                 // check first that it is not already loaded otherwise
                 // consecutive runs seems to end into an OutOfMemoryError
@@ -409,9 +405,9 @@ public abstract class JDBCTask extends Task {
                 // several times.
                 // this is far from being perfect but should work
                 // in most cases.
-                synchronized (loaderMap) {
+                synchronized (LOADER_MAP) {
                     if (caching) {
-                        loader = (AntClassLoader) loaderMap.get(driver);
+                        loader = (AntClassLoader) LOADER_MAP.get(driver);
                     }
                     if (loader == null) {
                         log("Loading " + driver
@@ -419,7 +415,7 @@ public abstract class JDBCTask extends Task {
                             + classpath, Project.MSG_VERBOSE);
                         loader = getProject().createClassLoader(classpath);
                         if (caching) {
-                            loaderMap.put(driver, loader);
+                            LOADER_MAP.put(driver, loader);
                         }
                     } else {
                         log("Loading " + driver

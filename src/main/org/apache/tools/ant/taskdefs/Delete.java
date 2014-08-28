@@ -27,6 +27,7 @@ import java.util.Comparator;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.DirectoryScanner;
+import org.apache.tools.ant.taskdefs.condition.Os;
 import org.apache.tools.ant.types.FileSet;
 import org.apache.tools.ant.types.PatternSet;
 import org.apache.tools.ant.types.Resource;
@@ -80,8 +81,8 @@ public class Delete extends MatchingTask {
     private static final ResourceSelector EXISTS = new Exists();
 
     private static class ReverseDirs implements ResourceCollection {
-        static final Comparator REVERSE = new Comparator() {
-            public int compare(Object foo, Object bar) {
+        static final Comparator<Comparable<?>> REVERSE = new Comparator<Comparable<?>>() {
+            public int compare(Comparable<?> foo, Comparable<?> bar) {
                 return ((Comparable) foo).compareTo(bar) * -1;
             }
         };
@@ -94,7 +95,7 @@ public class Delete extends MatchingTask {
             this.dirs = dirs;
             Arrays.sort(this.dirs, REVERSE);
         }
-        public Iterator iterator() {
+        public Iterator<Resource> iterator() {
             return new FileResourceIterator(project, basedir, dirs);
         }
         public boolean isFilesystemOnly() { return true; }
@@ -104,7 +105,7 @@ public class Delete extends MatchingTask {
     // CheckStyle:VisibilityModifier OFF - bc
     protected File file = null;
     protected File dir = null;
-    protected Vector filesets = new Vector();
+    protected Vector<FileSet> filesets = new Vector<FileSet>();
     protected boolean usedMatchingTask = false;
     // by default, remove matching empty dirs
     protected boolean includeEmpty = false;
@@ -119,6 +120,7 @@ public class Delete extends MatchingTask {
     private static FileUtils FILE_UTILS = FileUtils.getFileUtils();
     private static SymbolicLinkUtils SYMLINK_UTILS =
         SymbolicLinkUtils.getSymbolicLinkUtils();
+    private boolean performGc = Os.isFamily("windows");
 
     /**
      * Set the name of a single file to be removed.
@@ -195,6 +197,19 @@ public class Delete extends MatchingTask {
      */
     public void setIncludeEmptyDirs(boolean includeEmpty) {
         this.includeEmpty = includeEmpty;
+    }
+
+    /**
+     * Whether to perform a garbage collection before retrying a failed delete.
+     *
+     * <p>This may be required on Windows (where it is set to true by
+     * default) but also on other operating systems, for example when
+     * deleting directories from an NFS share.</p>
+     *
+     * @since Ant 1.8.3
+     */
+    public void setPerformGcOnFailedDelete(boolean b) {
+        performGc = b;
     }
 
    /**
@@ -593,7 +608,8 @@ public class Delete extends MatchingTask {
             filesets.add(implicit);
         }
 
-        for (int i = 0, size = filesets.size(); i < size; i++) {
+        final int size = filesets.size();
+        for (int i = 0; i < size; i++) {
             FileSet fs = (FileSet) filesets.get(i);
             if (fs.getProject() == null) {
                 log("Deleting fileset with no project specified;"
@@ -624,7 +640,7 @@ public class Delete extends MatchingTask {
                         public int size() {
                             return files.length;
                         }
-                        public Iterator iterator() {
+                        public Iterator<Resource> iterator() {
                             return new FileResourceIterator(getProject(),
                                                             fsDir, files);
                         }
@@ -667,11 +683,10 @@ public class Delete extends MatchingTask {
         }
         try {
             if (resourcesToDelete.isFilesystemOnly()) {
-                for (Iterator iter = resourcesToDelete.iterator(); iter.hasNext();) {
+                for (Resource r : resourcesToDelete) {
                     // nonexistent resources could only occur if we already
                     // deleted something from a fileset:
-                    Resource r = (Resource) iter.next();
-                    File f = ((FileProvider) r.as(FileProvider.class))
+                    File f = r.as(FileProvider.class)
                               .getFile();
                     if (!f.exists()) {
                         continue;
@@ -718,7 +733,7 @@ public class Delete extends MatchingTask {
      * wait a little and try again.
      */
     private boolean delete(File f) {
-        if (!FILE_UTILS.tryHardToDelete(f)) {
+        if (!FILE_UTILS.tryHardToDelete(f, performGc)) {
             if (deleteOnExit) {
                 int level = quiet ? Project.MSG_VERBOSE : Project.MSG_INFO;
                 log("Failed to delete " + f + ", calling deleteOnExit."

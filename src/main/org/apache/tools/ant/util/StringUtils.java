@@ -49,7 +49,7 @@ public final class StringUtils {
      * @param data the string to split up into lines.
      * @return the list of lines available in the string.
      */
-    public static Vector lineSplit(String data) {
+    public static Vector<String> lineSplit(String data) {
         return split(data, '\n');
     }
 
@@ -60,8 +60,8 @@ public final class StringUtils {
      * @param ch the separator character.
      * @return the list of elements.
      */
-    public static Vector split(String data, int ch) {
-        Vector elems = new Vector();
+    public static Vector<String> split(String data, int ch) {
+        Vector<String> elems = new Vector<String>();
         int pos = -1;
         int i = 0;
         while ((pos = data.indexOf(ch, i)) != -1) {
@@ -79,17 +79,10 @@ public final class StringUtils {
      * @param from the occurrence to replace.
      * @param to the occurrence to be used as a replacement.
      * @return the new string with replaced occurrences.
+     * @deprecated Use {@link String#replace(CharSequence, CharSequence)} now.
      */
     public static String replace(String data, String from, String to) {
-        StringBuffer buf = new StringBuffer(data.length());
-        int pos = -1;
-        int i = 0;
-        while ((pos = data.indexOf(from, i)) != -1) {
-            buf.append(data.substring(i, pos)).append(to);
-            i = pos + from.length();
-        }
-        buf.append(data.substring(i));
-        return buf.toString();
+        return data.replace(from, to);
     }
 
     /**

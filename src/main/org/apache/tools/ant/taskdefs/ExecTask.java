@@ -20,11 +20,8 @@ package org.apache.tools.ant.taskdefs;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Vector;
-
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.Task;
@@ -117,7 +114,7 @@ public class ExecTask extends Task {
      */
     public void setTimeout(Long value) {
         timeout = value;
-        incompatibleWithSpawn = true;
+        incompatibleWithSpawn |= timeout != null;
     }
 
     /**
@@ -366,7 +363,7 @@ public class ExecTask extends Task {
      */
     public void setFailIfExecutionFails(boolean flag) {
         failIfExecFails = flag;
-        incompatibleWithSpawn = true;
+        incompatibleWithSpawn |= flag;
     }
 
     /**
@@ -379,7 +376,7 @@ public class ExecTask extends Task {
      */
     public void setAppend(boolean append) {
         redirector.setAppend(append);
-        incompatibleWithSpawn = true;
+        incompatibleWithSpawn |= append;
     }
 
     /**
@@ -721,8 +718,8 @@ public class ExecTask extends Task {
         return line.substring("PATH=".length());
     }
 
-    private String getPath(Map/*<String, String>*/ map) {
-        String p = (String) map.get("PATH");
-        return p != null ? p : (String) map.get("Path");
+    private String getPath(Map<String, String> map) {
+        String p = map.get("PATH");
+        return p != null ? p : map.get("Path");
     }
 }

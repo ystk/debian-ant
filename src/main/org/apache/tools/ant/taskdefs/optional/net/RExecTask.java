@@ -387,7 +387,7 @@ public class RExecTask extends Task {
     }
     /**
      *  Process a 'typical' login.  If it differs, use the read
-     *  and write tasks explicitely
+     *  and write tasks explicitly
      */
     private void login(AntRExecClient rexec) {
         if (addCarriageReturn) {
@@ -399,7 +399,7 @@ public class RExecTask extends Task {
         rexec.sendString(password, false);
     }
     /**
-     * Set the the comand to execute on the server;
+     * Set the the command to execute on the server;
      * @param c a <code>String</code> value
      */
     public void setCommand(String c) {

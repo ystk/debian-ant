@@ -19,7 +19,6 @@ package org.apache.tools.ant.property;
 
 import java.text.ParsePosition;
 import java.util.Collection;
-import java.util.Iterator;
 import org.apache.tools.ant.Project;
 
 /**
@@ -31,15 +30,15 @@ public class ParseProperties implements ParseNextProperty {
 
     private final Project project;
     private final GetProperty getProperty;
-    private final Collection expanders;
+    private final Collection<PropertyExpander> expanders;
 
     /**
      * Constructor with a getProperty.
-     * @param project the current ant project.
-     * @param expanders a sequence of exapanders
+     * @param project the current Ant project.
+     * @param expanders a sequence of expanders
      * @param getProperty property resolver.
      */
-    public ParseProperties(Project project, Collection expanders, GetProperty getProperty) {
+    public ParseProperties(Project project, Collection<PropertyExpander> expanders, GetProperty getProperty) {
         this.project = project;
         this.expanders = expanders;
         this.getProperty = getProperty;
@@ -47,7 +46,7 @@ public class ParseProperties implements ParseNextProperty {
 
     /**
      * Get the project.
-     * @return the current ant project.
+     * @return the current Ant project.
      */
     public Project getProject() {
         return project;
@@ -183,9 +182,8 @@ public class ParseProperties implements ParseNextProperty {
     }
 
     private String parsePropertyName(String value, ParsePosition pos) {
-        for (Iterator iter = expanders.iterator(); iter.hasNext();) {
-            String propertyName = ((PropertyExpander) iter.next())
-                .parsePropertyName(value, pos, this);
+        for (PropertyExpander propertyExpander : expanders) {
+            String propertyName = propertyExpander.parsePropertyName(value, pos, this);
             if (propertyName == null) {
                 continue;
             }

@@ -164,7 +164,7 @@ public class JUnitTask extends Task {
     private Permissions perm = null;
     private ForkMode forkMode = new ForkMode("perTest");
 
-    private boolean splitJunit = false;
+    private boolean splitJUnit = false;
     private boolean enableTestListenerEvents = false;
     private JUnitTaskMirror delegate;
     private ClassLoader mirrorLoader;
@@ -172,11 +172,15 @@ public class JUnitTask extends Task {
     /** A boolean on whether to get the forked path for ant classes */
     private boolean forkedPathChecked = false;
 
+    /* set when a test fails/errs with haltonfailure/haltonerror and >1 thread to stop other threads */
+    private volatile BuildException caughtBuildException = null;
+
     //   Attributes for basetest
     private boolean haltOnError = false;
     private boolean haltOnFail  = false;
     private boolean filterTrace = true;
     private boolean fork        = false;
+    private int     threads     = 1;
     private String  failureProperty;
     private String  errorProperty;
 
@@ -238,7 +242,7 @@ public class JUnitTask extends Task {
      * Property to set to "true" if there is a error in a test.
      *
      * <p>This property is applied on all BatchTest (batchtest) and
-     * JUnitTest (test), however, it can possibly be overriden by
+     * JUnitTest (test), however, it can possibly be overridden by
      * their own properties.</p>
      * @param propertyName the name of the property to set in the
      * event of an error.
@@ -268,7 +272,7 @@ public class JUnitTask extends Task {
      * Property to set to "true" if there is a failure in a test.
      *
      * <p>This property is applied on all BatchTest (batchtest) and
-     * JUnitTest (test), however, it can possibly be overriden by
+     * JUnitTest (test), however, it can possibly be overridden by
      * their own properties.</p>
      * @param propertyName the name of the property to set in the
      * event of an failure.
@@ -311,12 +315,28 @@ public class JUnitTask extends Task {
      * <p>Only tests with the same configuration of haltonerror,
      * haltonfailure, errorproperty, failureproperty and filtertrace
      * can share a forked Java VM, so even if you set the value to
-     * "once", Ant may need to fork mutliple VMs.</p>
+     * "once", Ant may need to fork multiple VMs.</p>
      * @param mode the mode to use.
      * @since Ant 1.6.2
      */
     public void setForkMode(ForkMode mode) {
         this.forkMode = mode;
+    }
+
+    /**
+     * Set the number of test threads to be used for parallel test
+     * execution.  The default is 1, which is the same behavior as
+     * before parallel test execution was possible.
+     *
+     * <p>This attribute will be ignored if tests run in the same VM
+     * as Ant.</p>
+     *
+     * @since Ant 1.9.4
+     */
+    public void setThreads(int threads) {
+        if (threads >= 0) {
+            this.threads = threads;
+        }
     }
 
     /**
@@ -428,7 +448,7 @@ public class JUnitTask extends Task {
 
     /**
      * Adds a system property that tests can access.
-     * This might be useful to tranfer Ant properties to the
+     * This might be useful to transfer Ant properties to the
      * testcases when JVM forking is not enabled.
      *
      * @since Ant 1.3
@@ -442,7 +462,7 @@ public class JUnitTask extends Task {
 
     /**
      * Adds a system property that tests can access.
-     * This might be useful to tranfer Ant properties to the
+     * This might be useful to transfer Ant properties to the
      * testcases when JVM forking is not enabled.
      * @param sysp new environment variable to add
      * @since Ant 1.6
@@ -459,7 +479,7 @@ public class JUnitTask extends Task {
      * Adds a set of properties that will be used as system properties
      * that tests can access.
      *
-     * This might be useful to tranfer Ant properties to the
+     * This might be useful to transfer Ant properties to the
      * testcases when JVM forking is not enabled.
      *
      * @param sysp set of properties to be added
@@ -644,7 +664,7 @@ public class JUnitTask extends Task {
     /**
      * If set, system properties will be copied to the cloned VM - as
      * well as the bootclasspath unless you have explicitly specified
-     * a bootclaspath.
+     * a bootclasspath.
      *
      * <p>Doesn't have any effect unless fork is true.</p>
      * @param cloneVm a <code>boolean</code> value.
@@ -714,7 +734,7 @@ public class JUnitTask extends Task {
      */
     public void init() {
         antRuntimeClasses = new Path(getProject());
-        splitJunit = !addClasspathResource("/junit/framework/TestCase.class");
+        splitJUnit = !addClasspathResource("/junit/framework/TestCase.class");
         addClasspathEntry("/org/apache/tools/ant/launch/AntMain.class");
         addClasspathEntry("/org/apache/tools/ant/Task.class");
         addClasspathEntry("/org/apache/tools/ant/taskdefs/optional/junit/JUnitTestRunner.class");
@@ -751,7 +771,7 @@ public class JUnitTask extends Task {
      */
     protected void setupJUnitDelegate() {
         final ClassLoader myLoader = JUnitTask.class.getClassLoader();
-        if (splitJunit) {
+        if (splitJUnit) {
             final Path path = new Path(getProject());
             path.add(antRuntimeClasses);
             Path extra = getCommandline().getClasspath();
@@ -773,6 +793,10 @@ public class JUnitTask extends Task {
                                          "SummaryJUnitResultFormatter",
                                          "TearDownOnVmCrash",
                                          "XMLJUnitResultFormatter",
+                                         "IgnoredTestListener",
+                                         "IgnoredTestResult",
+                                         "CustomJUnit4TestAdapterCache",
+                                         "TestListenerWrapper"
                                      });
                 }
             });
@@ -794,6 +818,10 @@ public class JUnitTask extends Task {
         setupJUnitDelegate();
 
         List testLists = new ArrayList();
+        /* parallel test execution is only supported for multi-process execution */
+        int threads = ((!fork) || (forkMode.getValue().equals(ForkMode.ONCE))
+                       ? 1
+                       : this.threads);
 
         boolean forkPerTest = forkMode.getValue().equals(ForkMode.PER_TEST);
         if (forkPerTest || forkMode.getValue().equals(ForkMode.ONCE)) {
@@ -809,29 +837,172 @@ public class JUnitTask extends Task {
         }
 
         try {
-            Iterator iter = testLists.iterator();
-            while (iter.hasNext()) {
-                List l = (List) iter.next();
-                if (l.size() == 1) {
-                    execute((JUnitTest) l.get(0));
-                } else {
-                    execute(l);
-                }
-            }
+            /* prior to parallel the code in 'oneJunitThread' used to be here. */
+            runTestsInThreads(testLists, threads);
         } finally {
             cleanup();
         }
     }
 
+    /*
+     * When the list of tests is established, an array of threads is created to pick the
+     * tests off the list one at a time and execute them until the list is empty.  Tests are
+     * not assigned to threads until the thread is available.
+     *
+     * This class is the runnable thread subroutine that takes care of passing the shared
+     * list iterator and the handle back to the main class to the test execution subroutine
+     * code 'runTestsInThreads'.  One object is created for each thread and each one gets
+     * a unique thread id that can be useful for tracing test starts and stops.
+     *
+     * Because the threads are picking tests off the same list, it is the list *iterator*
+     * that must be shared, not the list itself - and the iterator must have a thread-safe
+     * ability to pop the list - hence the synchronized 'getNextTest'.
+     */
+    private class JunitTestThread implements Runnable {
+
+        JunitTestThread(JUnitTask master, Iterator iterator, int id) {
+            this.masterTask = master;
+            this.iterator = iterator;
+            this.id = id;
+        }
+
+        public void run() {
+            try {
+                masterTask.oneJunitThread(iterator, id);
+            } catch (BuildException b) {
+                /* saved to rethrow in main thread to be like single-threaded case */
+                caughtBuildException = b;
+            }
+        }
+
+        private JUnitTask masterTask;
+        private Iterator iterator;
+        private int id;               
+    }
+
+    /*
+     * Because the threads are picking tests off the same list, it is the list *iterator*
+     * that must be shared, not the list itself - and the iterator must have a thread-safe
+     * ability to pop the list - hence the synchronized 'getNextTest'.  We can't have two
+     * threads get the same test, or two threads simultaneously pop the list so that a test
+     * gets skipped!
+     */
+    private List getNextTest(Iterator iter) {
+        synchronized(iter) {
+            if (iter.hasNext()) {
+                return (List) iter.next();
+            }
+            return null;
+        }
+    }
+
+    /*
+     * This code loops keeps executing the next test or test bunch (depending on fork mode)
+     * on the list of test cases until none are left.  Basically this body of code used to
+     * be in the execute routine above; now, several copies (one for each test thread) execute
+     * simultaneously.  The while loop was modified to call the new thread-safe atomic list
+     * popping subroutine and the logging messages were added.
+     *
+     * If one thread aborts due to a BuildException (haltOnError, haltOnFailure, or any other
+     * fatal reason, no new tests/batches will be started but the running threads will be
+     * permitted to complete.  Additional tests may start in already-running batch-test threads.
+     */
+    private void oneJunitThread(Iterator iter, int threadId) {
+
+        List l;
+        log("Starting test thread " + threadId, Project.MSG_VERBOSE);
+        while ((caughtBuildException == null) && ((l = getNextTest(iter)) != null)) {
+            log("Running test " + l.get(0).toString() + "(" + l.size() + ") in thread " + threadId, Project.MSG_VERBOSE);
+            if (l.size() == 1) {
+                execute((JUnitTest) l.get(0), threadId);
+            } else {
+                execute(l, threadId);
+            }
+        }
+       log("Ending test thread " + threadId, Project.MSG_VERBOSE);
+    }
+
+
+    private void runTestsInThreads(List testList, int numThreads) {
+
+        Iterator iter = testList.iterator();
+
+        if (numThreads == 1) {
+            /* with just one thread just run the test - don't create any threads */
+            oneJunitThread(iter, 0);
+        }
+        else {
+            Thread threads[] = new Thread[numThreads];
+            int i;
+            boolean exceptionOccurred;
+
+            /* Need to split apart tests, which are still grouped in batches */
+            /* is there a simpler Java mechanism to do this? */
+            /* I assume we don't want to do this with "per batch" forking. */
+            List newlist = new ArrayList();
+            if (forkMode.getValue().equals(ForkMode.PER_TEST)) {
+                Iterator i1 = testList.iterator();
+                while (i1.hasNext()) {
+                    List l = (List) i1.next();
+                    if (l.size() == 1) {
+                         newlist.add(l);
+                    } else {
+                         Iterator i2 = l.iterator();
+                         while (i2.hasNext()) {
+                             List tmpSingleton = new ArrayList();
+                             tmpSingleton.add(i2.next());
+                             newlist.add(tmpSingleton);
+                         }
+                    }
+                }
+            } else {
+                 newlist = testList;
+            }
+            iter = newlist.iterator();
+
+            /* create 1 thread using the passthrough class, and let each thread start */
+            for (i = 0; i < numThreads; i++) {
+                threads[i] = new Thread(new JunitTestThread(this, iter, i+1));
+                threads[i].start();
+            }
+
+            /* wait for all of the threads to complete.  Not sure if the exception can actually occur in this use case. */
+            do {
+                exceptionOccurred = false;
+
+                try {
+                    for (i = 0; i < numThreads; i++) {
+                         threads[i].join();
+                    }
+                }
+                catch (InterruptedException e) {
+                    exceptionOccurred = true;
+                }
+            } while (exceptionOccurred);
+
+           /* an exception occurred in one of the threads - usually a haltOnError/Failure.
+              throw the exception again so it behaves like the single-thread case */
+           if (caughtBuildException != null) {
+               throw new BuildException(caughtBuildException);
+           }
+
+            /* all threads are completed - that's all there is to do. */
+            /* control will flow back to the test cleanup call and then execute is done. */
+        }
+    }
+
     /**
      * Run the tests.
-     * @param arg one JunitTest
+     * @param arg one JUnitTest
+     * @param thread Identifies which thread is test running in (0 for single-threaded runs)
      * @throws BuildException in case of test failures or errors
      */
-    protected void execute(JUnitTest arg) throws BuildException {
+    protected void execute(JUnitTest arg, int thread) throws BuildException {
         validateTestName(arg.getName());
 
         JUnitTest test = (JUnitTest) arg.clone();
+        test.setThread(thread);
+
         // set the default values if not specified
         //@todo should be moved to the test class instead.
         if (test.getTodir() == null) {
@@ -855,6 +1026,15 @@ public class JUnitTask extends Task {
     }
 
     /**
+     * Run the tests.
+     * @param arg one JUnitTest
+     * @throws BuildException in case of test failures or errors
+     */
+    protected void execute(JUnitTest arg) throws BuildException {
+        execute(arg, 0);
+    }
+
+    /**
      * Throws a <code>BuildException</code> if the given test name is invalid.
      * Validity is defined as not <code>null</code>, not empty, and not the
      * string &quot;null&quot;.
@@ -871,9 +1051,10 @@ public class JUnitTask extends Task {
     /**
      * Execute a list of tests in a single forked Java VM.
      * @param testList the list of tests to execute.
+     * @param thread Identifies which thread is test running in (0 for single-threaded runs)
      * @throws BuildException on error.
      */
-    protected void execute(List testList) throws BuildException {
+    protected void execute(List testList, int thread) throws BuildException {
         JUnitTest test = null;
         // Create a temporary file to pass the test cases to run to
         // the runner (one test case per line)
@@ -890,6 +1071,7 @@ public class JUnitTask extends Task {
             Iterator iter = testList.iterator();
             while (iter.hasNext()) {
                 test = (JUnitTest) iter.next();
+                test.setThread(thread);
                 printDual(writer, logWriter, test.getName());
                 if (test.getMethods() != null) {
                     printDual(writer, logWriter, ":" + test.getMethodsString().replace(',', '+'));
@@ -929,6 +1111,15 @@ public class JUnitTask extends Task {
                 log(e.toString(), Project.MSG_ERR);
             }
         }
+    }
+
+    /**
+     * Execute a list of tests in a single forked Java VM.
+     * @param testList the list of tests to execute.
+     * @throws BuildException on error.
+     */
+    protected void execute(List testList) throws BuildException {
+        execute(testList, 0);
     }
 
     /**
@@ -972,6 +1163,7 @@ public class JUnitTask extends Task {
             cmd.createArgument().setValue(Constants.TESTSFILE + casesFile);
         }
 
+        cmd.createArgument().setValue(Constants.SKIP_NON_TESTS + String.valueOf(test.isSkipNonTests()));
         cmd.createArgument().setValue(Constants.FILTERTRACE + test.getFiltertrace());
         cmd.createArgument().setValue(Constants.HALT_ON_ERROR + test.getHaltonerror());
         cmd.createArgument().setValue(Constants.HALT_ON_FAILURE
@@ -986,6 +1178,8 @@ public class JUnitTask extends Task {
                                       + String.valueOf(outputToFormatters));
         cmd.createArgument().setValue(Constants.LOG_FAILED_TESTS
                                       + String.valueOf(logFailedTests));
+        cmd.createArgument().setValue(Constants.THREADID
+                                      + String.valueOf(test.getThread()));
 
         // #31885
         cmd.createArgument().setValue(Constants.LOGTESTLISTENEREVENTS
@@ -1379,7 +1573,7 @@ public class JUnitTask extends Task {
         try {
             log("Using System properties " + System.getProperties(),
                 Project.MSG_VERBOSE);
-            if (splitJunit) {
+            if (splitJUnit) {
                 classLoader = (AntClassLoader) delegate.getClass().getClassLoader();
             } else {
                 createClassLoader();
@@ -1579,7 +1773,7 @@ public class JUnitTask extends Task {
                 + resource;
         }
 
-        File f = LoaderUtils.getResourceSource(getClass().getClassLoader(),
+        File f = LoaderUtils.getResourceSource(JUnitTask.class.getClassLoader(),
                                                resource);
         if (f != null) {
             log("Found " + f.getAbsolutePath(), Project.MSG_DEBUG);
@@ -1636,7 +1830,7 @@ public class JUnitTask extends Task {
         try {
             log("Using System properties " + System.getProperties(),
                 Project.MSG_VERBOSE);
-            if (splitJunit) {
+            if (splitJUnit) {
                 classLoader = (AntClassLoader) delegate.getClass().getClassLoader();
             } else {
                 createClassLoader();
@@ -1645,7 +1839,7 @@ public class JUnitTask extends Task {
                 classLoader.setThreadContextLoader();
             }
 
-            test.setCounts(1, 0, 1);
+            test.setCounts(1, 0, 1, 0);
             test.setProperties(getProject().getProperties());
             for (int i = 0; i < feArray.length; i++) {
                 FormatterElement fe = feArray[i];
@@ -1895,8 +2089,10 @@ public class JUnitTask extends Task {
         while (testList.hasMoreElements()) {
             JUnitTest test = (JUnitTest) testList.nextElement();
             if (test.shouldRun(getProject())) {
-                if (runIndividual || !test.getFork()) {
-                    execute(test);
+                /* with multi-threaded runs need to defer execution of even */
+                /* individual tests so the threads can pick tests off the queue. */
+                if ((runIndividual || !test.getFork()) && (threads == 1)) {
+                    execute(test, 0);
                 } else {
                     ForkedTestConfiguration c =
                         new ForkedTestConfiguration(test);
