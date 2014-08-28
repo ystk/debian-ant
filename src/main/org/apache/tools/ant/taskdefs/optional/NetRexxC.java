@@ -561,7 +561,7 @@ public class NetRexxC extends MatchingTask {
 
 
     /**
-     * Tells wether the trailing .keep in nocompile-mode should be removed
+     * Tells whether the trailing .keep in nocompile-mode should be removed
      * so that the resulting java source really ends on .java.
      * This facilitates the use of the javadoc tool lateron.
      */
@@ -846,7 +846,8 @@ public class NetRexxC extends MatchingTask {
         String eol = System.getProperty("line.separator");
         StringBuffer niceSourceList = new StringBuffer("Files to be compiled:" + eol);
 
-        for (int i = 0; i < compileList.size(); i++) {
+        final int size = compileList.size();
+        for (int i = 0; i < size; i++) {
             niceSourceList.append("    ");
             niceSourceList.append(compileList.elementAt(i).toString());
             niceSourceList.append(eol);
@@ -990,7 +991,7 @@ public class NetRexxC extends MatchingTask {
      * Takes a classpath-like string, and adds each element of this string to
      * a new classpath, if the components exist. Components that don't exist,
      * aren't added. We do this, because jikes issues warnings for
-     * non-existant files/dirs in his classpath, and these warnings are pretty
+     * non-existent files/dirs in his classpath, and these warnings are pretty
      * annoying.
      *
      * @param target - target classpath

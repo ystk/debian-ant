@@ -41,14 +41,14 @@ public class Apt
     private boolean compile = true;
     private String factory;
     private Path factoryPath;
-    private Vector options = new Vector();
+    private Vector<Option> options = new Vector<Option>();
     private File preprocessDir;
     /** The name of the apt tool. */
     public static final String EXECUTABLE_NAME = "apt";
     /** An warning message when ignoring compiler attribute. */
     public static final String ERROR_IGNORING_COMPILER_OPTION
         = "Ignoring compiler attribute for the APT task, as it is fixed";
-    /** A warning message if used with java < 1.5. */
+    /** A warning message if used with java &lt; 1.5. */
     public static final String ERROR_WRONG_JAVA_VERSION
         = "Apt task requires Java 1.5+";
 
@@ -104,7 +104,7 @@ public class Apt
     }
 
     /**
-     * Construtor for Apt task.
+     * Constructor for Apt task.
      * This sets the apt compiler adapter as the compiler in the super class.
      */
     public Apt() {
@@ -234,7 +234,7 @@ public class Apt
      * Each option will use '"-E" name ["=" value]' argument.
      * @return the options.
      */
-    public Vector getOptions() {
+    public Vector<Option> getOptions() {
         return options;
     }
 
@@ -262,6 +262,9 @@ public class Apt
      */
     public void execute()
             throws BuildException {
+        if (JavaEnvUtils.getJavaVersionNumber() >= 18) {
+           throw new BuildException("apt does not exist under Java 1.8 and higher");
+        }
         super.execute();
     }
 }

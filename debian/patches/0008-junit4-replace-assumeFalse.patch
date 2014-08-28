@@ -1,0 +1,25 @@
+Description: Replaces Assume.assumeFalse() introduced in JUnit 4.11 with assumeTrue()
+ to facilitate the backporting to the stable distribution where only JUnit 4.10
+ is available.
+Author: Emmanuel Bourg <ebourg@apache.org>
+Forwarded: not-needed
+--- a/src/tests/junit/org/example/junit/JUnit4Skippable.java
++++ b/src/tests/junit/org/example/junit/JUnit4Skippable.java
+@@ -40,7 +40,7 @@
+ 
+     @Test
+     public void implicitlyIgnoreTest() {
+-        Assume.assumeFalse("This test will be ignored", true);
++        Assume.assumeTrue(false); // This test will be ignored 
+         fail("I told you, this test should have been ignored!");
+     }
+ 
+@@ -52,7 +52,7 @@
+ 
+     @Test
+     public void implicitlyIgnoreTestNoMessage() {
+-        Assume.assumeFalse(true);
++        Assume.assumeTrue(false);
+         fail("I told you, this test should have been ignored!");
+     }
+ 

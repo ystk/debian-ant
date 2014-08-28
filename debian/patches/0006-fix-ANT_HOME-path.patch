@@ -6,11 +6,9 @@ Subject: [PATCH] fix $ANT_HOME path
  src/script/ant |   22 +++-------------------
  1 files changed, 3 insertions(+), 19 deletions(-)
 
-diff --git a/src/script/ant b/src/script/ant
-index 7415eeb..f2ba9de 100644
 --- a/src/script/ant
 +++ b/src/script/ant
-@@ -92,25 +92,9 @@ case "`uname`" in
+@@ -96,25 +96,9 @@
  esac
  
  if [ -z "$ANT_HOME" -o ! -d "$ANT_HOME" ] ; then
@@ -39,4 +37,3 @@ index 7415eeb..f2ba9de 100644
  fi
  
  # For Cygwin and Mingw, ensure paths are in UNIX format before
--- 

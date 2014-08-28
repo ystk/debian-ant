@@ -126,7 +126,7 @@ public class Native2Ascii extends MatchingTask {
 
     /**
      * Choose the implementation for this particular task.
-     * @param impl the name of the implemenation
+     * @param impl the name of the implementation
      * @since Ant 1.6.3
      */
     public void setImplementation(String impl) {
@@ -274,12 +274,13 @@ public class Native2Ascii extends MatchingTask {
         }
 
         // Make intermediate directories if needed
-        // XXX JDK 1.1 doesn't have File.getParentFile,
+        // TODO JDK 1.1 doesn't have File.getParentFile,
         String parentName = destFile.getParent();
         if (parentName != null) {
             File parentFile = new File(parentName);
 
-            if ((!parentFile.exists()) && (!parentFile.mkdirs())) {
+            if (!parentFile.exists()
+                && !(parentFile.mkdirs() || parentFile.isDirectory())) {
                 throw new BuildException("cannot create parent directory "
                                          + parentName);
             }

@@ -110,7 +110,7 @@ public abstract class ArchiveResource extends Resource {
             throw new BuildException("only single argument resource collections"
                                      + " are supported as archives");
         }
-        archive = (Resource) a.iterator().next();
+        archive = a.iterator().next();
     }
 
     /**
@@ -199,7 +199,7 @@ public abstract class ArchiveResource extends Resource {
      * @return a negative integer, zero, or a positive integer as this Resource
      *         is less than, equal to, or greater than the specified Resource.
      */
-    public int compareTo(Object another) {
+    public int compareTo(Resource another) {
         return this.equals(another) ? 0 : super.compareTo(another);
     }
 
@@ -216,7 +216,7 @@ public abstract class ArchiveResource extends Resource {
         if (isReference()) {
             return getCheckedRef().equals(another);
         }
-        if (!(another.getClass().equals(getClass()))) {
+        if (another == null || !(another.getClass().equals(getClass()))) {
             return false;
         }
         ArchiveResource r = (ArchiveResource) another;
@@ -244,7 +244,7 @@ public abstract class ArchiveResource extends Resource {
 
     /**
      * Validate settings and ensure that the represented "archive entry"
-     * has been established.  
+     * has been established.
      */
     protected final synchronized void checkEntry() throws BuildException {
         dieOnCircularReference();
@@ -277,7 +277,7 @@ public abstract class ArchiveResource extends Resource {
     /**
      * {@inheritDoc}
      */
-    protected synchronized void dieOnCircularReference(Stack stk, Project p) {
+    protected synchronized void dieOnCircularReference(Stack<Object> stk, Project p) {
         if (isChecked()) {
             return;
         }

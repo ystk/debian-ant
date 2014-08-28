@@ -17,13 +17,17 @@
  */
 package org.apache.tools.ant.util;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import java.util.Stack;
 
 /**
  * Identity Stack.
  * @since Ant 1.7
  */
-public class IdentityStack extends Stack {
+public class IdentityStack<E> extends Stack<E> {
 
     private static final long serialVersionUID = -5555522620060077046L;
 
@@ -32,11 +36,11 @@ public class IdentityStack extends Stack {
      * @param s the Stack to copy; ignored if null.
      * @return an IdentityStack instance.
      */
-    public static IdentityStack getInstance(Stack s) {
+    public static <E> IdentityStack<E> getInstance(Stack<E> s) {
         if (s instanceof IdentityStack) {
-            return (IdentityStack) s;
+            return (IdentityStack<E>) s;
         }
-        IdentityStack result = new IdentityStack();
+        IdentityStack<E> result = new IdentityStack<E>();
         if (s != null) {
             result.addAll(s);
         }
@@ -54,7 +58,7 @@ public class IdentityStack extends Stack {
      * as the bottom element.
      * @param o the bottom element.
      */
-    public IdentityStack(Object o) {
+    public IdentityStack(E o) {
         super();
         push(o);
     }
@@ -77,7 +81,8 @@ public class IdentityStack extends Stack {
      * @see java.util.Vector#indexOf(Object, int)
      */
     public synchronized int indexOf(Object o, int pos) {
-        for (int i = pos; i < size(); i++) {
+        final int size = size();
+        for (int i = pos; i < size; i++) {
             if (get(i) == o) {
                 return i;
             }
@@ -101,4 +106,25 @@ public class IdentityStack extends Stack {
         return -1;
     }
 
+    public synchronized boolean removeAll(Collection<?> c) {
+        if (!(c instanceof Set)) {
+            c = new HashSet(c);
+        }
+        return super.removeAll(c);
+    }
+
+    public synchronized boolean retainAll(Collection c) {
+        if (!(c instanceof Set)) {
+            c = new HashSet(c);
+        }
+        return super.retainAll(c);
+    }
+
+    public synchronized boolean containsAll(Collection<?> c) {
+        IdentityHashMap map = new IdentityHashMap();
+        for (Object e : this) {
+            map.put(e, Boolean.TRUE);
+        }
+        return map.keySet().containsAll(c);
+    }
 }

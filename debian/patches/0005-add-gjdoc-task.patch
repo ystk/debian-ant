@@ -8,10 +8,8 @@ Subject: [PATCH] add gjdoc task
  2 files changed, 2147 insertions(+), 0 deletions(-)
  create mode 100644 main/org/apache/tools/ant/taskdefs/Gjdoc.java
 
-Index: apache-ant-1.8.2/main/org/apache/tools/ant/taskdefs/Gjdoc.java
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ apache-ant-1.8.2/main/org/apache/tools/ant/taskdefs/Gjdoc.java	2011-05-04 15:31:43.065902942 +0100
+--- /dev/null
++++ b/main/org/apache/tools/ant/taskdefs/Gjdoc.java
 @@ -0,0 +1,2146 @@
 +/*
 + * Copyright  2000-2005 The Apache Software Foundation
@@ -2159,11 +2157,9 @@ Index: apache-ant-1.8.2/main/org/apache/tools/ant/taskdefs/Gjdoc.java
 +    }
 +
 +}
-Index: apache-ant-1.8.2/src/main/org/apache/tools/ant/taskdefs/defaults.properties
-===================================================================
---- apache-ant-1.8.2.orig/src/main/org/apache/tools/ant/taskdefs/defaults.properties	2011-05-04 15:31:38.195900724 +0100
-+++ apache-ant-1.8.2/src/main/org/apache/tools/ant/taskdefs/defaults.properties	2011-05-04 15:31:43.065902942 +0100
-@@ -65,6 +65,7 @@
+--- a/src/main/org/apache/tools/ant/taskdefs/defaults.properties
++++ b/src/main/org/apache/tools/ant/taskdefs/defaults.properties
+@@ -67,6 +67,7 @@
  java=org.apache.tools.ant.taskdefs.Java
  javac=org.apache.tools.ant.taskdefs.Javac
  javadoc=org.apache.tools.ant.taskdefs.Javadoc

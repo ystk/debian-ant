@@ -17,6 +17,7 @@
  */
 package org.apache.tools.ant.types.resources;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -44,7 +45,7 @@ public class MappedResourceCollection
     private Mapper mapper = null;
     private boolean enableMultipleMappings = false;
     private boolean cache = false;
-    private Collection cachedColl = null;
+    private Collection<Resource> cachedColl = null;
 
     /**
      * Adds the required nested ResourceCollection.
@@ -142,7 +143,7 @@ public class MappedResourceCollection
     /**
      * {@inheritDoc}
      */
-    public Iterator iterator() {
+    public Iterator<Resource> iterator() {
         if (isReference()) {
             return ((MappedResourceCollection) getCheckedRef()).iterator();
         }
@@ -185,7 +186,7 @@ public class MappedResourceCollection
      * @param p   the project to use to dereference the references.
      * @throws BuildException on error.
      */
-    protected synchronized void dieOnCircularReference(Stack stk, Project p)
+    protected synchronized void dieOnCircularReference(Stack<Object> stk, Project p)
         throws BuildException {
         if (isChecked()) {
             return;
@@ -212,19 +213,18 @@ public class MappedResourceCollection
         dieOnCircularReference();
     }
 
-    private synchronized Collection cacheCollection() {
+    private synchronized Collection<Resource> cacheCollection() {
         if (cachedColl == null || !cache) {
             cachedColl = getCollection();
         }
         return cachedColl;
     }
 
-    private Collection getCollection() {
-        Collection collected = new ArrayList();
+    private Collection<Resource> getCollection() {
+        Collection<Resource> collected = new ArrayList<Resource>();
         FileNameMapper m =
             mapper != null ? mapper.getImplementation() : new IdentityMapper();
-        for (Iterator iter = nested.iterator(); iter.hasNext(); ) {
-            Resource r = (Resource) iter.next();
+        for (Resource r : nested) {
             if (enableMultipleMappings) {
                 String[] n = m.mapFileName(r.getName());
                 if (n != null) {
@@ -240,4 +240,27 @@ public class MappedResourceCollection
         }
         return collected;
     }
+
+    /**
+     * Format this resource collection as a String.
+     * @return a descriptive <code>String</code>.
+     */
+    public String toString() {
+        if (isReference()) {
+            return getCheckedRef().toString();
+        }
+        Iterator<Resource> i = iterator();
+        if (!i.hasNext()) {
+            return "";
+        }
+        StringBuffer sb = new StringBuffer();
+        while (i.hasNext()) {
+            if (sb.length() > 0) {
+                sb.append(File.pathSeparatorChar);
+            }
+            sb.append(i.next());
+        }
+        return sb.toString();
+    }
+
 }

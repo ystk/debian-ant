@@ -38,7 +38,7 @@ import org.apache.tools.ant.util.StringUtils;
  *
  */
 
-public class PlainJUnitResultFormatter implements JUnitResultFormatter {
+public class PlainJUnitResultFormatter implements JUnitResultFormatter, IgnoredTestListener {
 
     private static final double ONE_SECOND = 1000.0;
 
@@ -117,47 +117,59 @@ public class PlainJUnitResultFormatter implements JUnitResultFormatter {
      * @throws BuildException if unable to write the output
      */
     public void endTestSuite(JUnitTest suite) throws BuildException {
-        StringBuffer sb = new StringBuffer("Tests run: ");
-        sb.append(suite.runCount());
-        sb.append(", Failures: ");
-        sb.append(suite.failureCount());
-        sb.append(", Errors: ");
-        sb.append(suite.errorCount());
-        sb.append(", Time elapsed: ");
-        sb.append(nf.format(suite.getRunTime() / ONE_SECOND));
-        sb.append(" sec");
-        sb.append(StringUtils.LINE_SEP);
+        try {
+            StringBuffer sb = new StringBuffer("Tests run: ");
+            sb.append(suite.runCount());
+            sb.append(", Failures: ");
+            sb.append(suite.failureCount());
+            sb.append(", Errors: ");
+            sb.append(suite.errorCount());
+            sb.append(", Skipped: ");
+            sb.append(suite.skipCount());
+            sb.append(", Time elapsed: ");
+            sb.append(nf.format(suite.getRunTime() / ONE_SECOND));
+            sb.append(" sec");
+            sb.append(StringUtils.LINE_SEP);
+            write(sb.toString());
 
-        // append the err and output streams to the log
-        if (systemOutput != null && systemOutput.length() > 0) {
-            sb.append("------------- Standard Output ---------------")
-                .append(StringUtils.LINE_SEP)
-                .append(systemOutput)
-                .append("------------- ---------------- ---------------")
-                .append(StringUtils.LINE_SEP);
-        }
+            // write the err and output streams to the log
+            if (systemOutput != null && systemOutput.length() > 0) {
+                write("------------- Standard Output ---------------");
+                write(StringUtils.LINE_SEP);
+                write(systemOutput);
+                write("------------- ---------------- ---------------");
+                write(StringUtils.LINE_SEP);
+            }
 
-        if (systemError != null && systemError.length() > 0) {
-            sb.append("------------- Standard Error -----------------")
-                .append(StringUtils.LINE_SEP)
-                .append(systemError)
-                .append("------------- ---------------- ---------------")
-                .append(StringUtils.LINE_SEP);
-        }
+            if (systemError != null && systemError.length() > 0) {
+                write("------------- Standard Error -----------------");
+                write(StringUtils.LINE_SEP);
+                write(systemError);
+                write("------------- ---------------- ---------------");
+                write(StringUtils.LINE_SEP);
+            }
 
-        sb.append(StringUtils.LINE_SEP);
-
-        if (out != null) {
-            try {
-                out.write(sb.toString().getBytes());
-                wri.close();
-                out.write(inner.toString().getBytes());
-                out.flush();
-            } catch (IOException ioex) {
-                throw new BuildException("Unable to write output", ioex);
-            } finally {
-                if (out != System.out && out != System.err) {
-                    FileUtils.close(out);
+            write(StringUtils.LINE_SEP);
+            if (out != null) {
+                try {
+                    wri.flush();
+                    write(inner.toString());
+                } catch (IOException ioex) {
+                    throw new BuildException("Unable to write output", ioex);
+                }
+            }
+        } finally {
+            if (out != null) {
+                try {
+                    wri.close();
+                } catch (IOException ioex) {
+                    throw new BuildException("Unable to flush output", ioex);
+                } finally {
+                    if (out != System.out && out != System.err) {
+                        FileUtils.close(out);
+                    }
+                    wri = null;
+                    out = null;
                 }
             }
         }
@@ -258,4 +270,48 @@ public class PlainJUnitResultFormatter implements JUnitResultFormatter {
         }
     }
 
+    public void testIgnored(Test test) {
+        formatSkip(test, JUnitVersionHelper.getIgnoreMessage(test));
+    }
+
+
+    public void formatSkip(Test test, String message) {
+        if (test != null) {
+            endTest(test);
+        }
+
+        try {
+            wri.write("\tSKIPPED");
+            if (message != null) {
+                wri.write(": ");
+                wri.write(message);
+            }
+            wri.newLine();
+        } catch (IOException ex) {
+            throw new BuildException(ex);
+        }
+
+    }
+
+    public void testAssumptionFailure(Test test, Throwable throwable) {
+        formatSkip(test, throwable.getMessage());
+    }
+
+    /**
+     * Print out some text, and flush the output stream; encoding in the platform
+     * local default encoding.
+     * @param text text to write.
+     * @throws BuildException on IO Problems.
+     */
+    private void write(String text) {
+        if (out == null) {
+            return;
+        }
+        try {
+            out.write(text.getBytes());
+            out.flush();
+        } catch (IOException ex) {
+            throw new BuildException("Unable to write output " + ex, ex);
+        }
+    }
 } // PlainJUnitResultFormatter

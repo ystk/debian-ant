@@ -608,7 +608,7 @@ public class JspC extends MatchingTask {
      * </ol>
      * @param srcFile JSP source file
      * @param javaFile JSP dest file
-     * @return true if a compile is definately needed.
+     * @return true if a compile is definitely needed.
      *
      */
     private boolean isCompileNeeded(File srcFile, File javaFile) {
@@ -640,7 +640,7 @@ public class JspC extends MatchingTask {
 
     /**
      * get a filename from our jsp file.
-     * @param mangler the jsp filename managler.
+     * @param mangler the jsp filename manager.
      * @param srcFile the source file.
      * @param srcDir  the source directory.
      * @param dest    the destination directory.

@@ -1,13 +1,21 @@
 package org.apache.tools.ant.taskdefs.optional;
 
-import org.apache.tools.ant.taskdefs.XSLTLiaison;
-import org.apache.tools.ant.taskdefs.XSLTLogger;
-import org.apache.tools.ant.BuildException;
-import org.apache.tools.ant.util.JAXPUtils;
+import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.InputStream;
+import java.security.Permission;
 
 import junit.framework.AssertionFailedError;
+
+import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.taskdefs.XSLTLiaison;
+import org.apache.tools.ant.taskdefs.XSLTLogger;
+import org.apache.tools.ant.util.JAXPUtils;
+import org.junit.After;
+import org.junit.Assume;
+import org.junit.Test;
 
 /*
  *  Licensed to the Apache Software Foundation (ASF) under one or more
@@ -33,10 +41,8 @@ import junit.framework.AssertionFailedError;
 public class TraXLiaisonTest extends AbstractXSLTLiaisonTest
     implements XSLTLogger {
 
-    public TraXLiaisonTest(String name){
-        super(name);
-    }
 
+	@After
     public void tearDown() {
         File f = new File("xalan2-redirect-out.tmp");
         if (f.exists()) {
@@ -50,29 +56,41 @@ public class TraXLiaisonTest extends AbstractXSLTLiaisonTest
         return l;
     }
 
+    @Test
     public void testXalan2Redirect() throws Exception {
-    	Class clazz = null;
     	try {
-    		clazz = getClass().getClassLoader().loadClass("org.apache.xalan.lib.Redirect");
+    		getClass().getClassLoader().loadClass("org.apache.xalan.lib.Redirect");
     	} catch (Exception exc) {
-    		// ignore
-    	}
-    	if (clazz == null) {
-    		System.out.println("xalan redirect is not on the classpath");
-    		return;
+    		Assume.assumeNoException("xalan redirect is not on the classpath", exc);
     	}
         File xsl = getFile("/taskdefs/optional/xalan-redirect-in.xsl");
         liaison.setStylesheet(xsl);
         File out = new File("xalan2-redirect-out-dummy.tmp");
         File in = getFile("/taskdefs/optional/xsltliaison-in.xsl");
+        ClassLoader orig = Thread.currentThread().getContextClassLoader();
         try {
             liaison.addParam("xalan-version", "2");
+            // Use the JRE's Xerces, not lib/optional/xerces.jar:
+            Thread.currentThread().setContextClassLoader(new ClassLoader(ClassLoader.getSystemClassLoader().getParent()) {
+                public InputStream getResourceAsStream(String name) {
+                    if (name.startsWith("META-INF/services/")) {
+                        // work around JAXP #6723276 in JDK 6
+                        return new ByteArrayInputStream(new byte[0]);
+                    }
+                    return super.getResourceAsStream(name);
+                }
+            });
+            // Tickle #52382:
+            System.setSecurityManager(new SecurityManager() {public void checkPermission(Permission perm) {}});
             liaison.transform(in, out);
         } finally {
             out.delete();
+            Thread.currentThread().setContextClassLoader(orig);
+            System.setSecurityManager(null);
         }
     }
 
+    @Test
     public void testMultipleTransform() throws Exception {
         File xsl = getFile("/taskdefs/optional/xsltliaison-in.xsl");
         liaison.setStylesheet(xsl);
@@ -91,6 +109,7 @@ public class TraXLiaisonTest extends AbstractXSLTLiaisonTest
         }
     }
 
+    @Test
     public void testSystemId(){
         File file = null;
         if ( File.separatorChar == '\\' ){

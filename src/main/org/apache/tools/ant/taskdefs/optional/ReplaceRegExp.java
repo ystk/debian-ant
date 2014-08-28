@@ -21,11 +21,11 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
@@ -212,11 +212,13 @@ public class ReplaceRegExp extends Task {
      * on one line at a time.  This is useful if you
      * want to only replace the first occurrence of a regular expression on
      * each line, which is not easy to do when processing the file as a whole.
-     * Defaults to <i>false</i>.</td>
+     * Defaults to <i>false</i>.
+     * 
      * @param byline the byline attribute as a string
      * @deprecated since 1.6.x.
      *             Use setByLine(boolean).
      */
+    @Deprecated
     public void setByLine(String byline) {
         Boolean res = Boolean.valueOf(byline);
 
@@ -231,13 +233,13 @@ public class ReplaceRegExp extends Task {
      * on one line at a time.  This is useful if you
      * want to only replace the first occurrence of a regular expression on
      * each line, which is not easy to do when processing the file as a whole.
-     * Defaults to <i>false</i>.</td>
+     * Defaults to <i>false</i>.
+     * 
      * @param byline the byline attribute
      */
     public void setByLine(boolean byline) {
         this.byline = byline;
     }
-
 
     /**
      * Specifies the encoding Ant expects the files to be in -
@@ -344,129 +346,96 @@ public class ReplaceRegExp extends Task {
     /**
      *  Perform the replacement on a file
      *
-     * @param f the file to perform the relacement on
+     * @param f the file to perform the replacement on
      * @param options the regular expressions options
      * @exception IOException if an error occurs
      */
     protected void doReplace(File f, int options)
          throws IOException {
         File temp = FILE_UTILS.createTempFile("replace", ".txt", null, true, true);
-
-        Reader r = null;
-        Writer w = null;
-        BufferedWriter bw = null;
-
         try {
-            if (encoding == null) {
-                r = new FileReader(f);
-                w = new FileWriter(temp);
-            } else {
-                r = new InputStreamReader(new FileInputStream(f), encoding);
-                w = new OutputStreamWriter(new FileOutputStream(temp),
-                                           encoding);
-            }
-
-            BufferedReader br = new BufferedReader(r);
-            bw = new BufferedWriter(w);
-
             boolean changes = false;
 
-            log("Replacing pattern '" + regex.getPattern(getProject())
-                + "' with '" + subs.getExpression(getProject())
-                + "' in '" + f.getPath() + "'" + (byline ? " by line" : "")
-                + (flags.length() > 0 ? " with flags: '" + flags + "'" : "")
-                + ".", Project.MSG_VERBOSE);
+            InputStream is = new FileInputStream(f);
+            try {
+                Reader r = encoding != null ? new InputStreamReader(is, encoding) : new InputStreamReader(is);
+                OutputStream os = new FileOutputStream(temp);
+                try {
+                    Writer w = encoding != null ? new OutputStreamWriter(os, encoding) : new OutputStreamWriter(os);
 
-            if (byline) {
-                StringBuffer linebuf = new StringBuffer();
-                String line = null;
-                String res = null;
-                int c;
-                boolean hasCR = false;
+                    log("Replacing pattern '" + regex.getPattern(getProject())
+                        + "' with '" + subs.getExpression(getProject())
+                        + "' in '" + f.getPath() + "'" + (byline ? " by line" : "")
+                        + (flags.length() > 0 ? " with flags: '" + flags + "'" : "")
+                        + ".", Project.MSG_VERBOSE);
 
-                do {
-                    c = br.read();
+                    if (byline) {
+                        r = new BufferedReader(r);
+                        w = new BufferedWriter(w);
 
-                    if (c == '\r') {
-                        if (hasCR) {
-                            // second CR -> EOL + possibly empty line
-                            line = linebuf.toString();
-                            res  = doReplace(regex, subs, line, options);
+                        StringBuffer linebuf = new StringBuffer();
+                        int c;
+                        boolean hasCR = false;
 
-                            if (!res.equals(line)) {
-                                changes = true;
+                        do {
+                            c = r.read();
+
+                            if (c == '\r') {
+                                if (hasCR) {
+                                    // second CR -> EOL + possibly empty line
+                                    changes |= replaceAndWrite(linebuf.toString(),
+                                                               w, options);
+                                    w.write('\r');
+
+                                    linebuf = new StringBuffer();
+                                    // hasCR is still true (for the second one)
+                                } else {
+                                    // first CR in this line
+                                    hasCR = true;
+                                }
+                            } else if (c == '\n') {
+                                // LF -> EOL
+                                changes |= replaceAndWrite(linebuf.toString(),
+                                                           w, options);
+                                if (hasCR) {
+                                    w.write('\r');
+                                    hasCR = false;
+                                }
+                                w.write('\n');
+
+                                linebuf = new StringBuffer();
+                            } else { // any other char
+                                if ((hasCR) || (c < 0)) {
+                                    // Mac-style linebreak or EOF (or both)
+                                    changes |= replaceAndWrite(linebuf.toString(),
+                                                               w, options);
+                                    if (hasCR) {
+                                        w.write('\r');
+                                        hasCR = false;
+                                    }
+
+                                    linebuf = new StringBuffer();
+                                }
+
+                                if (c >= 0) {
+                                    linebuf.append((char) c);
+                                }
                             }
+                        } while (c >= 0);
 
-                            bw.write(res);
-                            bw.write('\r');
-
-                            linebuf = new StringBuffer();
-                            // hasCR is still true (for the second one)
-                        } else {
-                            // first CR in this line
-                            hasCR = true;
-                        }
-                    } else if (c == '\n') {
-                        // LF -> EOL
-                        line = linebuf.toString();
-                        res  = doReplace(regex, subs, line, options);
-
-                        if (!res.equals(line)) {
-                            changes = true;
-                        }
-
-                        bw.write(res);
-                        if (hasCR) {
-                            bw.write('\r');
-                            hasCR = false;
-                        }
-                        bw.write('\n');
-
-                        linebuf = new StringBuffer();
-                    } else { // any other char
-                        if ((hasCR) || (c < 0)) {
-                            // Mac-style linebreak or EOF (or both)
-                            line = linebuf.toString();
-                            res  = doReplace(regex, subs, line, options);
-
-                            if (!res.equals(line)) {
-                                changes = true;
-                            }
-
-                            bw.write(res);
-                            if (hasCR) {
-                                bw.write('\r');
-                                hasCR = false;
-                            }
-
-                            linebuf = new StringBuffer();
-                        }
-
-                        if (c >= 0) {
-                            linebuf.append((char) c);
-                        }
+                    } else {
+                        changes = multilineReplace(r, w, options);
                     }
-                } while (c >= 0);
 
-            } else {
-                String buf = FileUtils.safeReadFully(br);
+                    r.close();
+                    w.close();
 
-                String res = doReplace(regex, subs, buf, options);
-
-                if (!res.equals(buf)) {
-                    changes = true;
+                } finally {
+                    os.close();
                 }
-
-                bw.write(res);
+            } finally {
+                is.close();
             }
-
-            bw.flush();
-
-            r.close();
-            r = null;
-            w.close();
-            w = null;
-
             if (changes) {
                 log("File has changed; saving the updated file", Project.MSG_VERBOSE);
                 try {
@@ -484,9 +453,6 @@ public class ReplaceRegExp extends Task {
                 log("No change made", Project.MSG_DEBUG);
             }
         } finally {
-            FileUtils.close(r);
-            FileUtils.close(bw);
-            FileUtils.close(w);
             if (temp != null) {
                 temp.delete();
             }
@@ -529,9 +495,9 @@ public class ReplaceRegExp extends Task {
         }
 
         if (resources != null) {
-            for (Iterator i = resources.iterator(); i.hasNext(); ) {
+            for (Resource r : resources) {
                 FileProvider fp =
-                    (FileProvider) ((Resource) i.next()).as(FileProvider.class);
+                    r.as(FileProvider.class);
                 File f = fp.getFile();
 
                 if (f.exists()) {
@@ -550,6 +516,17 @@ public class ReplaceRegExp extends Task {
         }
     }
 
+    private boolean multilineReplace(Reader r, Writer w, int options)
+        throws IOException {
+        return replaceAndWrite(FileUtils.safeReadFully(r), w, options);
+    }
+
+    private boolean replaceAndWrite(String s, Writer w, int options)
+        throws IOException {
+        String res = doReplace(regex, subs, s, options);
+        w.write(res);
+        return !res.equals(s);
+    }
 }
 
 

@@ -66,7 +66,7 @@ public class ContainsRegexpSelector extends BaseExtendSelector
      * @return a string describing this object
      */
     public String toString() {
-        StringBuffer buf = new StringBuffer(
+        StringBuilder buf = new StringBuilder(
                 "{containsregexpselector expression: ");
         buf.append(userProvidedExpression);
         buf.append("}");
@@ -102,7 +102,7 @@ public class ContainsRegexpSelector extends BaseExtendSelector
 
     /**
      * Whether to treat input as singleline ('.' matches newline).
-     * Corresponsds to java.util.regex.Pattern.DOTALL.
+     * Corresponds to java.util.regex.Pattern.DOTALL.
      * @param b the value to set.
      * @since Ant 1.8.2
      */

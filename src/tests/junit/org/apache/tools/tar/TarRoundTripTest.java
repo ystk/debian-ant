@@ -17,25 +17,39 @@
  */
 package org.apache.tools.tar;
 
-import java.io.IOException;
+import org.junit.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import junit.framework.TestCase;
+import java.io.IOException;
 
-public class TarRoundTripTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+public class TarRoundTripTest {
 
     private static final String LONG_NAME
         = "this/path/name/contains/more/than/one/hundred/characters/in/order/"
             + "to/test/the/GNU/long/file/name/capability/round/tripped";
 
-    public TarRoundTripTest(String name) {
-        super(name);
-    }
-
     /**
      * test round-tripping long (GNU) entries
      */
-    public void testLongRoundTripping() throws IOException {
+    @Test
+    public void testLongRoundTrippingGNU() throws IOException {
+        testLongRoundTripping(TarOutputStream.LONGFILE_GNU);
+    }
+
+    /**
+     * test round-tripping long (POSIX) entries
+     */
+    @Test
+    public void testLongRoundTrippingPOSIX() throws IOException {
+        testLongRoundTripping(TarOutputStream.LONGFILE_POSIX);
+    }
+
+    private void testLongRoundTripping(int mode) throws IOException {
         TarEntry original = new TarEntry(LONG_NAME);
         assertTrue("over 100 chars", LONG_NAME.length() > 100);
         assertEquals("original name", LONG_NAME, original.getName());
@@ -43,7 +57,7 @@ public class TarRoundTripTest extends TestCase {
 
         ByteArrayOutputStream buff = new ByteArrayOutputStream();
         TarOutputStream tos = new TarOutputStream(buff);
-        tos.setLongFileMode(TarOutputStream.LONGFILE_GNU);
+        tos.setLongFileMode(mode);
         tos.putNextEntry(original);
         tos.closeEntry();
         tos.close();

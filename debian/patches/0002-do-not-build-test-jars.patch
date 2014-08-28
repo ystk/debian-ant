@@ -6,11 +6,9 @@ Subject: [PATCH] do not build test jars
  build.xml |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-Index: apache-ant-1.8.2/build.xml
-===================================================================
---- apache-ant-1.8.2.orig/build.xml	2011-05-04 15:32:03.355912171 +0100
-+++ apache-ant-1.8.2/build.xml	2011-05-04 15:32:09.565914993 +0100
-@@ -791,7 +791,7 @@
+--- a/build.xml
++++ b/build.xml
+@@ -896,7 +896,7 @@
         ===================================================================
    -->
    <target name="dist-lite"

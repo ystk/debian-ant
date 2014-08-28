@@ -38,6 +38,9 @@ print information that might be helpful to diagnose or report problems
 \fB\-quiet, \-q\fR
 be extra quiet
 .TP
+\fB\-silent, \-S\fR
+print nothing but task outputs and build failures
+.TP
 \fB\-verbose, \-v\fR
 be extra verbose
 .TP
@@ -95,7 +98,7 @@ Run ant without using the jar files from ${user.home}/.ant/lib
 Run ant without using CLASSPATH
 .TP
 \fB\-autoproxy\fR
-Java 1.5+ : use the OS proxies
+Java 5 or later : use the OS proxy settings
 .TP
 \fB\-main\fR <\fIclass\fR>
 Override Ant's normal entry point

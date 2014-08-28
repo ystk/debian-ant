@@ -18,9 +18,20 @@
 package org.apache.tools.ant.taskdefs;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.Enumeration;
-import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Vector;
+import javax.xml.namespace.QName;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+import javax.xml.xpath.XPathVariableResolver;
 import org.apache.tools.ant.AntClassLoader;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.DirectoryScanner;
@@ -77,7 +88,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
     private String fileDirParameter = null;
 
     /** additional parameters to be passed to the stylesheets */
-    private Vector params = new Vector();
+    private List<Param> params = new ArrayList<Param>();
 
     /** Input XML document to be used */
     private File inFile = null;
@@ -91,7 +102,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
     /** Classpath to use when trying to load the XSL processor */
     private Path classpath = null;
 
-    /** The Liason implementation to use to communicate with the XSL
+    /** The Liaison implementation to use to communicate with the XSL
      *  processor */
     private XSLTLiaison liaison;
 
@@ -197,6 +208,19 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
      * @since Ant 1.8.0
      */
     private boolean failOnNoResources = true;
+    
+    /**
+     * For evaluating template params
+     *
+     * @since Ant 1.9.3
+     */
+    private XPathFactory xpathFactory;
+    /**
+     * For evaluating template params
+     *
+     * @since Ant 1.9.3
+     */
+    private XPath xpath;
 
     /**
      * System properties to set during transformation.
@@ -277,7 +301,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
             handleError("The style element must be specified with exactly one"
                         + " nested resource.");
         } else {
-            setXslResource((Resource) rc.iterator().next());
+            setXslResource(rc.iterator().next());
         }
     }
 
@@ -306,8 +330,9 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
      * Executes the task.
      *
      * @exception BuildException if there is an execution problem.
-     * @todo validate that if either in or our is defined, then both are
+     * @todo validate that if either in or out is defined, then both are
      */
+    @Override
     public void execute() throws BuildException {
         if ("style".equals(getTaskType())) {
             log("Warning: the task name <style> is deprecated. Use <xslt> instead.",
@@ -359,15 +384,16 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
                 // via style attribute
                 File stylesheet = getProject().resolveFile(xslFile);
                 if (!stylesheet.exists()) {
-                    stylesheet = FILE_UTILS.resolveFile(baseDir, xslFile);
+                    File alternative = FILE_UTILS.resolveFile(baseDir, xslFile);
                     /*
                      * shouldn't throw out deprecation warnings before we know,
                      * the wrong version has been used.
                      */
-                    if (stylesheet.exists()) {
+                    if (alternative.exists()) {
                         log("DEPRECATED - the 'style' attribute should be "
                             + "relative to the project's");
                         log("             basedir, not the tasks's basedir.");
+                        stylesheet = alternative;
                     }
                 }
                 FileResource fr = new FileResource();
@@ -748,15 +774,13 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
      * @since Ant 1.7
      */
     private void processResources(Resource stylesheet) {
-        Iterator iter = resources.iterator();
-        while (iter.hasNext()) {
-            Resource r = (Resource) iter.next();
+        for (Resource r : resources) {
             if (!r.isExists()) {
                 continue;
             }
             File base = baseDir;
             String name = r.getName();
-            FileProvider fp = (FileProvider) r.as(FileProvider.class);
+            FileProvider fp = r.as(FileProvider.class);
             if (fp != null) {
                 FileResource f = ResourceUtils.asFileResource(fp);
                 base = f.getBaseDir();
@@ -872,7 +896,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
     private void ensureDirectoryFor(File targetFile) throws BuildException {
         File directory = targetFile.getParentFile();
         if (!directory.exists()) {
-            if (!directory.mkdirs()) {
+            if (!(directory.mkdirs() || directory.isDirectory())) {
                 handleError("Unable to create directory: "
                             + directory.getAbsolutePath());
             }
@@ -907,9 +931,9 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
     }
 
     /**
-     * Get the Liason implementation to use in processing.
+     * Get the Liaison implementation to use in processing.
      *
-     * @return an instance of the XSLTLiason interface.
+     * @return an instance of the XSLTLiaison interface.
      */
     protected XSLTLiaison getLiaison() {
         // if processor wasn't specified, use TraX.
@@ -939,7 +963,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
      */
     public Param createParam() {
         Param p = new Param();
-        params.addElement(p);
+        params.add(p);
         return p;
     }
 
@@ -952,6 +976,12 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
 
         /** The parameter's value */
         private String expression = null;
+        
+        /**
+         * Type of the expression.
+         * @see ParamType
+         */
+        private String type;
 
         private Object ifCond;
         private Object unlessCond;
@@ -976,14 +1006,23 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
         }
 
         /**
-         * The parameter value
-         * NOTE : was intended to be an XSL expression.
-         * @param expression the parameter's value.
+         * The parameter value -
+         * can be a primitive type value or an XPath expression.
+         * @param expression the parameter's value/expression.
+         * @see #setType(java.lang.String) 
          */
         public void setExpression(String expression) {
             this.expression = expression;
         }
 
+        /**
+         * @see ParamType
+         * @since Ant 1.9.3
+         */
+        public void setType(String type) {
+            this.type = type;
+        }
+        
         /**
          * Get the parameter name
          *
@@ -1002,6 +1041,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
          *
          * @return the parameter value
          * @exception BuildException if the value is not set.
+         * @see #getType()
          */
         public String getExpression() throws BuildException {
             if (expression == null) {
@@ -1011,8 +1051,16 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
         }
 
         /**
+         * @see ParamType
+         * @since Ant 1.9.3
+         */
+        public String getType() {
+            return type;
+        }
+
+        /**
          * Set whether this param should be used.  It will be used if
-         * the expression evalutes to true or the name of a property
+         * the expression evaluates to true or the name of a property
          * which has been set, otherwise it won't.
          * @param ifCond evaluated expression
          * @since Ant 1.8.0
@@ -1023,7 +1071,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
 
         /**
          * Set whether this param should be used.  It will be used if
-         * the expression evalutes to true or the name of a property
+         * the expression evaluates to true or the name of a property
          * which has been set, otherwise it won't.
          * @param ifProperty evaluated expression
          */
@@ -1063,6 +1111,57 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
                 && ph.testUnlessCondition(unlessCond);
         }
     } // Param
+    
+    /**
+     * Enum for types of the parameter expression.
+     *
+     * <p>The expression can be:</p>
+     * <ul>
+     * <li>primitive type that will be parsed from the string value e.g.
+     * {@linkplain Integer#parseInt(java.lang.String)}</li>
+     * <li>XPath expression that will be evaluated (outside of the transformed
+     * document - on empty one) and casted to given type. Inside XPath
+     * expressions the Ant variables (properties) can be used (as XPath
+     * variables - e.g. $variable123). n.b. placeholders in form of
+     * ${variable123} will be substituted with their values before evaluating the
+     * XPath expression (so it can be used for dynamic XPath function names and
+     * other hacks).</li>
+     * </ul>
+     * <p>The parameter will be then passed to the XSLT template.</p>
+     *
+     * <p>Default type (if omited) is primitive String. So if the expression is e.g
+     * "true" with no type, in XSLT it will be only a text string, not true
+     * boolean.</p>
+     * 
+     * @see Param#setType(java.lang.String)
+     * @see Param#setExpression(java.lang.String)
+     * @since Ant 1.9.3
+     */
+    public enum ParamType {
+
+        STRING,
+        BOOLEAN,
+        INT,
+        LONG,
+        DOUBLE,
+        XPATH_STRING,
+        XPATH_BOOLEAN,
+        XPATH_NUMBER,
+        XPATH_NODE,
+        XPATH_NODESET;
+        
+        public static final Map<ParamType, QName> XPATH_TYPES;
+
+        static {
+            Map<ParamType, QName> m = new EnumMap<ParamType, QName>(ParamType.class);
+            m.put(XPATH_STRING, XPathConstants.STRING);
+            m.put(XPATH_BOOLEAN, XPathConstants.BOOLEAN);
+            m.put(XPATH_NUMBER, XPathConstants.NUMBER);
+            m.put(XPATH_NODE, XPathConstants.NODE);
+            m.put(XPATH_NODESET, XPathConstants.NODESET);
+            XPATH_TYPES = Collections.unmodifiableMap(m);
+        }
+    }
 
     /**
      * Create an instance of an output property to be configured.
@@ -1121,12 +1220,22 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
     }
 
     /**
-     * Initialize internal instance of XMLCatalog
+     * Initialize internal instance of XMLCatalog.
+     * Initialize XPath for parameter evaluation.
      * @throws BuildException on error
      */
+    @Override
     public void init() throws BuildException {
         super.init();
         xmlCatalog.setProject(getProject());
+        
+        xpathFactory = XPathFactory.newInstance();
+        xpath = xpathFactory.newXPath();
+        xpath.setXPathVariableResolver(new XPathVariableResolver() {
+            public Object resolveVariable(QName variableName) {
+                return getProject().getProperty(variableName.toString());
+            }
+        });
     }
 
     /**
@@ -1158,7 +1267,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
 
         try {
             log("Loading stylesheet " + stylesheet, Project.MSG_INFO);
-            // We call liason.configure() and then liaison.setStylesheet()
+            // We call liaison.configure() and then liaison.setStylesheet()
             // so that the internal variables of liaison can be set up
             if (liaison instanceof XSLTLiaison2) {
                 ((XSLTLiaison2) liaison).configure(this);
@@ -1172,7 +1281,7 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
                 // a resource, but we can set it as a file. So,
                 // we make an attempt to get it as a file
                 FileProvider fp =
-                    (FileProvider) stylesheet.as(FileProvider.class);
+                    stylesheet.as(FileProvider.class);
                 if (fp != null) {
                     liaison.setStylesheet(fp.getFile());
                 } else {
@@ -1181,15 +1290,76 @@ public class XSLTProcess extends MatchingTask implements XSLTLogger {
                     return;
                 }
             }
-            for (Enumeration e = params.elements(); e.hasMoreElements();) {
-                Param p = (Param) e.nextElement();
+            for (Param p : params) {
                 if (p.shouldUse()) {
-                    liaison.addParam(p.getName(), p.getExpression());
+                    Object evaluatedParam = evaluateParam(p);
+                    if (liaison instanceof XSLTLiaison4) {
+                        ((XSLTLiaison4)liaison).addParam(p.getName(), evaluatedParam);
+                    } else {
+                        if (evaluatedParam == null || evaluatedParam instanceof String) {
+                            liaison.addParam(p.getName(), (String)evaluatedParam);
+                        } else {
+                            log("XSLTLiaison '" + liaison.getClass().getName()
+                                    + "' supports only String parameters. Converting parameter '" + p.getName()
+                                    + "' to its String value '" + evaluatedParam, Project.MSG_WARN);
+                            liaison.addParam(p.getName(), String.valueOf(evaluatedParam));
+                        }
+                    }
                 }
             }
         } catch (Exception ex) {
             log("Failed to transform using stylesheet " + stylesheet, Project.MSG_INFO);
             handleTransformationError(ex);
+        }
+    }
+    
+    /**
+     * Evaluates parameter expression according to its type.
+     *
+     * @param param parameter from Ant build file
+     * @return value to be passed to XSLT as parameter
+     * @throws IllegalArgumentException if param type is unsupported
+     * @throws NumberFormatException if expression of numeric type is not
+     * desired numeric type
+     * @throws XPathExpressionException if XPath expression can not be compiled
+     * @since Ant 1.9.3
+     */
+    private Object evaluateParam(Param param) throws XPathExpressionException {
+        String typeName = param.getType();
+        String expression = param.getExpression();
+
+        ParamType type;
+
+        if (typeName == null || "".equals(typeName)) {
+            type = ParamType.STRING; // String is default
+        } else {
+            try {
+                type = ParamType.valueOf(typeName);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid XSLT parameter type: " + typeName, e);
+            }
+        }
+
+        switch (type) {
+            case STRING:
+                return expression;
+            case BOOLEAN:
+                return Boolean.parseBoolean(expression);
+            case DOUBLE:
+                return Double.parseDouble(expression);
+            case INT:
+                return Integer.parseInt(expression);
+            case LONG:
+                return Long.parseLong(expression);
+            default: // XPath expression
+                QName xpathType = ParamType.XPATH_TYPES.get(type);
+                if (xpathType == null) {
+                    throw new IllegalArgumentException("Invalid XSLT parameter type: " + typeName);
+                } else {
+                    XPathExpression xpe = xpath.compile(expression);
+                    // null = evaluate XPath on empty XML document
+                    return xpe.evaluate((Object) null, xpathType);
+                }
         }
     }
 

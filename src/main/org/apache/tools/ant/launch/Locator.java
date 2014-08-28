@@ -27,6 +27,8 @@ import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Locale;
 
+import org.apache.tools.ant.util.FileUtils;
+
 // CheckStyle:LineLengthCheck OFF - urls are long!
 /**
  * The Locator is a utility class which is used to find certain items
@@ -113,7 +115,7 @@ public final class Locator {
      *
      * @since Ant 1.6
      */
-    public static File getClassSource(Class c) {
+    public static File getClassSource(Class<?> c) {
         String classResource = c.getName().replace('.', '/') + ".class";
         return getResourceSource(c.getClassLoader(), classResource);
     }
@@ -164,7 +166,7 @@ public final class Locator {
      *
      * <p>Will be an absolute path if the given URI is absolute.</p>
      *
-     * <p>Prior to Java 1.4,<!-- XXX is JDK version actually relevant? -->
+     * <p>Prior to Java 1.4,<!-- TODO is JDK version actually relevant? -->
      * swallows '%' that are not followed by two characters.</p>
      *
      * See <a href="http://www.w3.org/TR/xml11/#dt-sysid">dt-sysid</a>
@@ -179,7 +181,7 @@ public final class Locator {
     public static String fromURI(String uri) {
         return fromURIJava13(uri);
         // #buzilla8031: first try Java 1.4.
-        // XXX should use java.net.URI now that we can rely on 1.4...
+        // TODO should use java.net.URI now that we can rely on 1.4...
         // but check for UNC-related regressions, e.g. #42275
         // (and remember that \\server\share\file -> file:////server/share/file
         // rather than -> file://server/share/file as it should;
@@ -312,8 +314,11 @@ public final class Locator {
                         sb.write((char) ((i1 << NIBBLE) + i2));
                     }
                 }
-            } else {
+            } else if (c >= 0x0000 && c < 0x0080) {
                 sb.write(c);
+            } else { // #50543
+                byte[] bytes = String.valueOf(c).getBytes(URI_ENCODING);
+                sb.write(bytes, 0, bytes.length);
             }
         }
         return sb.toString(URI_ENCODING);
@@ -387,7 +392,7 @@ public final class Locator {
      * Convert a File to a URL.
      * File.toURL() does not encode characters like #.
      * File.toURI() has been introduced in java 1.4, so
-     * Ant cannot use it (except by reflection) <!-- XXX no longer true -->
+     * Ant cannot use it (except by reflection) <!-- TODO no longer true -->
      * FileUtils.toURI() cannot be used by Locator.java
      * Implemented this way.
      * File.toURL() adds file: and changes '\' to '/' for dos OSes
@@ -395,14 +400,12 @@ public final class Locator {
      * @param file the file to convert
      * @return URL the converted File
      * @throws MalformedURLException on error
+     * @deprecated since 1.9, use {@link FileUtils#getFileURL(File)}
      */
+    @Deprecated
     public static URL fileToURL(File file)
         throws MalformedURLException {
-        try {
-            return new URL(encodeURI(file.toURL().toString()));
-        } catch (UnsupportedEncodingException ex) {
-            throw new MalformedURLException(ex.toString());
-        }
+        return new URL(file.toURI().toASCIIString());
     }
 
     /**

@@ -2,11 +2,12 @@
 
 VERSION=$2
 ORIG_TAR=$3
-TAR=../ant_$VERSION.orig.tar.gz
+TAR=../ant_$VERSION.orig.tar.xz
 DIR=apache-ant-$VERSION
 
 tar xvzf $ORIG_TAR
-tar -c -z -f $TAR --exclude '*.jar' --exclude '*.pdf' $DIR
+rm $ORIG_TAR
+XZ_OPT=--best tar -c -J -f $TAR --exclude '*.jar' --exclude '*.pdf' $DIR
 rm -rf $DIR
 
 # move to directory 'tarballs'

@@ -23,8 +23,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.DirectoryScanner;
@@ -80,6 +80,8 @@ public class Javac extends MatchingTask {
     private static final String FAIL_MSG
         = "Compile failed; see the compiler error output for details.";
 
+    private static final String JAVAC19 = "javac1.9";
+    private static final String JAVAC18 = "javac1.8";
     private static final String JAVAC17 = "javac1.7";
     private static final String JAVAC16 = "javac1.6";
     private static final String JAVAC15 = "javac1.5";
@@ -119,7 +121,7 @@ public class Javac extends MatchingTask {
     protected boolean failOnError = true;
     protected boolean listFiles = false;
     protected File[] compileList = new File[0];
-    private Map/*<String,Long>*/ packageInfos = new HashMap();
+    private Map<String, Long> packageInfos = new HashMap<String, Long>();
     // CheckStyle:VisibilityModifier ON
 
     private String source;
@@ -130,6 +132,8 @@ public class Javac extends MatchingTask {
     private boolean taskSuccess = true; // assume the best
     private boolean includeDestClasses = true;
     private CompilerAdapter nestedAdapter = null;
+
+    private boolean createMissingPackageInfoClass = true;
 
     /**
      * Javac task for compilation of Java files.
@@ -147,6 +151,10 @@ public class Javac extends MatchingTask {
             return JAVAC16;
         } else if (JavaEnvUtils.isJavaVersion(JavaEnvUtils.JAVA_1_7)) {
             return JAVAC17;
+        } else if (JavaEnvUtils.isJavaVersion(JavaEnvUtils.JAVA_1_8)) {
+            return JAVAC18;
+        } else if (JavaEnvUtils.isJavaVersion(JavaEnvUtils.JAVA_1_9)) {
+            return JAVAC19;
         } else {
             return CLASSIC;
         }
@@ -164,7 +172,7 @@ public class Javac extends MatchingTask {
      * Keyword list to be appended to the -g command-line switch.
      *
      * This will be ignored by all implementations except modern
-     * and classic(ver >= 1.2). Legal values are none or a
+     * and classic(ver &gt;= 1.2). Legal values are none or a
      * comma-separated list of the following keywords: lines, vars,
      * and source. If debuglevel is not specified, by default, :none
      * will be appended to -g. If debug is not turned on, this attribute
@@ -598,7 +606,7 @@ public class Javac extends MatchingTask {
     /**
      * Sets the target VM that the classes will be compiled for. Valid
      * values depend on the compiler, for jdk 1.4 the valid values are
-     * "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "5", "6" and "7".
+     * "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "5", "6", "7" and "8".
      * @param target the target VM
      */
     public void setTarget(String target) {
@@ -762,7 +770,9 @@ public class Javac extends MatchingTask {
     }
 
     private String getAltCompilerName(String anImplementation) {
-        if (JAVAC17.equalsIgnoreCase(anImplementation)
+        if (JAVAC19.equalsIgnoreCase(anImplementation)
+                || JAVAC18.equalsIgnoreCase(anImplementation)
+                || JAVAC17.equalsIgnoreCase(anImplementation)
                 || JAVAC16.equalsIgnoreCase(anImplementation)
                 || JAVAC15.equalsIgnoreCase(anImplementation)
                 || JAVAC14.equalsIgnoreCase(anImplementation)
@@ -775,7 +785,9 @@ public class Javac extends MatchingTask {
         }
         if (MODERN.equalsIgnoreCase(anImplementation)) {
             String nextSelected = assumedJavaVersion();
-            if (JAVAC17.equalsIgnoreCase(nextSelected)
+            if (JAVAC19.equalsIgnoreCase(nextSelected)
+                    || JAVAC18.equalsIgnoreCase(nextSelected)
+                    || JAVAC17.equalsIgnoreCase(nextSelected)
                     || JAVAC16.equalsIgnoreCase(nextSelected)
                     || JAVAC15.equalsIgnoreCase(nextSelected)
                     || JAVAC14.equalsIgnoreCase(nextSelected)
@@ -856,7 +868,7 @@ public class Javac extends MatchingTask {
     /**
      * Get the result of the javac task (success or failure).
      * @return true if compilation succeeded, or
-     *         was not neccessary, false if the compilation failed.
+     *         was not necessary, false if the compilation failed.
      */
     public boolean getTaskSuccess() {
         return taskSuccess;
@@ -882,6 +894,17 @@ public class Javac extends MatchingTask {
                                      + " adapter");
         }
         nestedAdapter = adapter;
+    }
+
+    /**
+     * Whether package-info.class files will be created by Ant
+     * matching package-info.java files that have been compiled but
+     * didn't create class files themselves.
+     *
+     * @since Ant 1.8.3
+     */
+    public void setCreateMissingPackageInfoClass(boolean b) {
+        createMissingPackageInfoClass = b;
     }
 
     /**
@@ -922,7 +945,7 @@ public class Javac extends MatchingTask {
      */
     protected void resetFileLists() {
         compileList = new File[0];
-        packageInfos = new HashMap();
+        packageInfos = new HashMap<String, Long>();
     }
 
     /**
@@ -936,7 +959,7 @@ public class Javac extends MatchingTask {
     protected void scanDir(File srcDir, File destDir, String[] files) {
         GlobPatternMapper m = new GlobPatternMapper();
         String[] extensions = findSupportedFileExtensions();
-        
+
         for (int i = 0; i < extensions.length; i++) {
             m.setFrom(extensions[i]);
             m.setTo("*.class");
@@ -966,7 +989,7 @@ public class Javac extends MatchingTask {
         if (adapter instanceof CompilerAdapterExtension) {
             extensions =
                 ((CompilerAdapterExtension) adapter).getSupportedFileExtensions();
-        } 
+        }
 
         if (extensions == null) {
             extensions = new String[] { "java" };
@@ -979,7 +1002,7 @@ public class Javac extends MatchingTask {
                 extensions[i] = "*." + extensions[i];
             }
         }
-        return extensions; 
+        return extensions;
     }
 
     /**
@@ -995,12 +1018,14 @@ public class Javac extends MatchingTask {
      *
      * @param compilerImpl the name of the compiler implementation
      * @return true if compilerImpl is "modern", "classic",
-     * "javac1.1", "javac1.2", "javac1.3", "javac1.4", "javac1.5" or
-     * "javac1.6".
+     * "javac1.1", "javac1.2", "javac1.3", "javac1.4", "javac1.5",
+     * "javac1.6", "javac1.7", "javac1.8" or "javac1.9".
      */
     protected boolean isJdkCompiler(String compilerImpl) {
         return MODERN.equals(compilerImpl)
             || CLASSIC.equals(compilerImpl)
+            || JAVAC19.equals(compilerImpl)
+            || JAVAC18.equals(compilerImpl)
             || JAVAC17.equals(compilerImpl)
             || JAVAC16.equals(compilerImpl)
             || JAVAC15.equals(compilerImpl)
@@ -1133,11 +1158,16 @@ public class Javac extends MatchingTask {
             // finally, lets execute the compiler!!
             if (adapter.execute()) {
                 // Success
-                try {
-                    generateMissingPackageInfoClasses();
-                } catch (IOException x) {
-                    // Should this be made a nonfatal warning?
-                    throw new BuildException(x, getLocation());
+                if (createMissingPackageInfoClass) {
+                    try {
+                        generateMissingPackageInfoClasses(destDir != null
+                                                          ? destDir
+                                                          : getProject()
+                                                          .resolveFile(src.list()[0]));
+                    } catch (IOException x) {
+                        // Should this be made a nonfatal warning?
+                        throw new BuildException(x, getLocation());
+                    }
                 }
             } else {
                 // Fail path
@@ -1194,12 +1224,11 @@ public class Javac extends MatchingTask {
      * Otherwise this task's up-to-date tracking mechanisms do not work.
      * @see <a href="https://issues.apache.org/bugzilla/show_bug.cgi?id=43114">Bug #43114</a>
      */
-    private void generateMissingPackageInfoClasses() throws IOException {
-        for (Iterator i = packageInfos.entrySet().iterator(); i.hasNext(); ) {
-            Map.Entry entry = (Map.Entry) i.next();
-            String pkg = (String) entry.getKey();
-            Long sourceLastMod = (Long) entry.getValue();
-            File pkgBinDir = new File(destDir, pkg.replace('/', File.separatorChar));
+    private void generateMissingPackageInfoClasses(File dest) throws IOException {
+        for (Entry<String, Long> entry : packageInfos.entrySet()) {
+            String pkg = entry.getKey();
+            Long sourceLastMod = entry.getValue();
+            File pkgBinDir = new File(dest, pkg.replace('/', File.separatorChar));
             pkgBinDir.mkdirs();
             File pkgInfoClass = new File(pkgBinDir, "package-info.class");
             if (pkgInfoClass.isFile() && pkgInfoClass.lastModified() >= sourceLastMod.longValue()) {
@@ -1220,6 +1249,7 @@ public class Javac extends MatchingTask {
             }
         }
     }
+
     private static final byte[] PACKAGE_INFO_CLASS_HEADER = {
         (byte) 0xca, (byte) 0xfe, (byte) 0xba, (byte) 0xbe, 0x00, 0x00, 0x00,
         0x31, 0x00, 0x07, 0x07, 0x00, 0x05, 0x07, 0x00, 0x06, 0x01, 0x00, 0x0a,
@@ -1227,6 +1257,7 @@ public class Javac extends MatchingTask {
         0x11, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x2d, 0x69, 0x6e, 0x66,
         0x6f, 0x2e, 0x6a, 0x61, 0x76, 0x61, 0x01
     };
+
     private static final byte[] PACKAGE_INFO_CLASS_FOOTER = {
         0x2f, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x2d, 0x69, 0x6e, 0x66,
         0x6f, 0x01, 0x00, 0x10, 0x6a, 0x61, 0x76, 0x61, 0x2f, 0x6c, 0x61, 0x6e,

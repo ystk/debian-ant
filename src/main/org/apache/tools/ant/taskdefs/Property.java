@@ -21,29 +21,26 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Vector;
 
 import org.apache.tools.ant.AntClassLoader;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.PropertyHelper;
 import org.apache.tools.ant.Task;
+import org.apache.tools.ant.property.ResolvePropertyMap;
 import org.apache.tools.ant.types.Path;
 import org.apache.tools.ant.types.Reference;
 import org.apache.tools.ant.util.FileUtils;
-import org.apache.tools.ant.property.ResolvePropertyMap;
 
 /**
- * Sets a property by name, or set of properties (from file or
+ * <p>Sets a property by name, or set of properties (from file or
  * resource) in the project.  </p>
- * Properties are immutable: whoever sets a property first freezes it for the
+ * <p>Properties are immutable: whoever sets a property first freezes it for the
  * rest of the build; they are most definitely not variable.
  * <p>There are seven ways to set properties:</p>
  * <ul>
@@ -555,7 +552,7 @@ public class Property extends Task {
      * @param is    The input stream from where to load
      * @param isXml <tt>true</tt> if we should try to load from xml
      * @throws IOException if something goes wrong
-     * @since 1.7.1
+     * @since 1.8.0
      * @see http://java.sun.com/dtd/properties.dtd
      * @see java.util.Properties#loadFromXML(InputStream)
      */
@@ -563,18 +560,7 @@ public class Property extends Task {
                                 Properties props, InputStream is, boolean isXml) throws IOException {
         if (isXml) {
             // load the xml based property definition
-            // use reflection because of bwc to Java 1.4
-            try {
-                Method loadXmlMethod = props.getClass().getMethod("loadFromXML",
-                                                                  new Class[] {InputStream.class});
-                loadXmlMethod.invoke(props, new Object[] {is});
-            } catch (NoSuchMethodException e) {
-                e.printStackTrace();
-                log("Can not load xml based property definition on Java < 5");
-            } catch (Exception e) {
-                // no-op
-                e.printStackTrace();
-            }
+            props.loadFromXML(is);
         } else {
             // load ".properties" format
             props.load(is);

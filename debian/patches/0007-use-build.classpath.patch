@@ -6,11 +6,9 @@ Subject: [PATCH] use ${build.classpath}
  build.xml |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-Index: apache-ant-1.8.2/build.xml
-===================================================================
---- apache-ant-1.8.2.orig/build.xml	2011-05-04 15:31:54.275908042 +0100
-+++ apache-ant-1.8.2/build.xml	2011-05-04 15:31:54.325908066 +0100
-@@ -119,7 +119,7 @@
+--- a/build.xml
++++ b/build.xml
+@@ -129,7 +129,7 @@
         ===================================================================
    -->
    <path id="classpath">

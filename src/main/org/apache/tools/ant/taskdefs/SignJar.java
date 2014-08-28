@@ -110,6 +110,16 @@ public class SignJar extends AbstractJarSignerTask {
     private boolean force = false;
 
     /**
+     * signature algorithm
+     */
+    private String sigAlg;
+
+    /**
+     * digest algorithm
+     */
+    private String digestAlg;
+
+    /**
      * error string for unit test verification: {@value}
      */
     public static final String ERROR_TODIR_AND_SIGNEDJAR
@@ -276,6 +286,38 @@ public class SignJar extends AbstractJarSignerTask {
     }
 
     /**
+     * Signature Algorithm; optional
+     *
+     * @param sigAlg the signature algorithm
+     */
+    public void setSigAlg(String sigAlg) {
+        this.sigAlg = sigAlg;
+    }
+
+    /**
+     * Signature Algorithm; optional
+     */
+    public String getSigAlg() {
+        return sigAlg;
+    }
+
+    /**
+     * Digest Algorithm; optional
+     *
+     * @param digestAlg the digest algorithm
+     */
+    public void setDigestAlg(String digestAlg) {
+        this.digestAlg = digestAlg;
+    }
+
+    /**
+     * Digest Algorithm; optional
+     */
+    public String getDigestAlg() {
+        return digestAlg;
+    }
+
+    /**
      * sign the jar(s)
      *
      * @throws BuildException on errors
@@ -343,11 +385,9 @@ public class SignJar extends AbstractJarSignerTask {
             //and the mapper is ready to map from source dirs to dest files
             //now we iterate through every JAR giving source and dest names
             // deal with the paths
-            Iterator iter = sources.iterator();
-            while (iter.hasNext()) {
-                Resource r = (Resource) iter.next();
+            for (Resource r : sources) {
                 FileResource fr = ResourceUtils
-                    .asFileResource((FileProvider) r.as(FileProvider.class));
+                    .asFileResource(r.as(FileProvider.class));
 
                 //calculate our destination directory; it is either the destDir
                 //attribute, or the base dir of the fileset (for in situ updates)
@@ -420,6 +460,16 @@ public class SignJar extends AbstractJarSignerTask {
             addValue(cmd, "-sectionsonly");
         }
 
+        if (sigAlg != null) {
+            addValue(cmd, "-sigalg");
+            addValue(cmd, sigAlg);
+        }
+
+        if (digestAlg != null) {
+            addValue(cmd, "-digestalg");
+            addValue(cmd, digestAlg);
+        }
+
         //add -tsa operations if declared
         addTimestampAuthorityCommands(cmd);
 
@@ -461,13 +511,13 @@ public class SignJar extends AbstractJarSignerTask {
     }
 
     /**
-     * Compare a jar file with its corresponding signed jar. The logic for this
+     * <p>Compare a jar file with its corresponding signed jar. The logic for this
      * is complex, and best explained in the source itself. Essentially if
      * either file doesnt exist, or the destfile has an out of date timestamp,
-     * then the return value is false.
-     * <p/>
-     * If we are signing ourself, the check {@link #isSigned(File)} is used to
-     * trigger the process.
+     * then the return value is false.</p>
+     * 
+     * <p>If we are signing ourself, the check {@link #isSigned(File)} is used to
+     * trigger the process.</p>
      *
      * @param jarFile       the unsigned jar file
      * @param signedjarFile the result signed jar file

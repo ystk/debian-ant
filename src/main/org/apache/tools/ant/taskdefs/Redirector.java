@@ -37,6 +37,8 @@ import org.apache.tools.ant.ProjectComponent;
 import org.apache.tools.ant.Task;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.filters.util.ChainReaderHelper;
+import org.apache.tools.ant.types.FilterChain;
+import org.apache.tools.ant.util.LineOrientedOutputStreamRedirector;
 import org.apache.tools.ant.util.StringUtils;
 import org.apache.tools.ant.util.TeeOutputStream;
 import org.apache.tools.ant.util.ReaderInputStream;
@@ -49,7 +51,7 @@ import org.apache.tools.ant.util.KeepAliveOutputStream;
 /**
  * The Redirector class manages the setup and connection of input and output
  * redirection for an Ant project component.
- * 
+ *
  * @since Ant 1.6
  */
 public class Redirector {
@@ -155,13 +157,13 @@ public class Redirector {
     private PrintStream errorPrintStream = null;
 
     /** The output filter chains */
-    private Vector outputFilterChains;
+    private Vector<FilterChain> outputFilterChains;
 
     /** The error filter chains */
-    private Vector errorFilterChains;
+    private Vector<FilterChain> errorFilterChains;
 
     /** The input filter chains */
-    private Vector inputFilterChains;
+    private Vector<FilterChain> inputFilterChains;
 
     /** The output encoding */
     private String outputEncoding = DEFAULT_ENCODING;
@@ -190,9 +192,12 @@ public class Redirector {
     /** Mutex for err */
     private Object errMutex = new Object();
 
+    /** Is the output binary or can we safely split it into lines? */
+    private boolean outputIsBinary = false;
+
     /**
      * Create a redirector instance for the given task
-     * 
+     *
      * @param managingTask
      *            the task for which the redirector is to work
      */
@@ -202,7 +207,7 @@ public class Redirector {
 
     /**
      * Create a redirector instance for the given task
-     * 
+     *
      * @param managingTask
      *            the project component for which the redirector is to work
      * @since Ant 1.6.3
@@ -213,7 +218,7 @@ public class Redirector {
 
     /**
      * Set the input to use for the task
-     * 
+     *
      * @param input
      *            the file from which input is read.
      */
@@ -223,7 +228,7 @@ public class Redirector {
 
     /**
      * Set the input to use for the task
-     * 
+     *
      * @param input
      *            the files from which input is read.
      */
@@ -239,7 +244,7 @@ public class Redirector {
 
     /**
      * Set the string to use as input
-     * 
+     *
      * @param inputString
      *            the string which is used as the input source
      */
@@ -252,7 +257,7 @@ public class Redirector {
     /**
      * Set whether to include the value of the input string in log messages.
      * Defaults to true.
-     * 
+     *
      * @param logInputString
      *            true or false.
      * @since Ant 1.7
@@ -263,7 +268,7 @@ public class Redirector {
 
     /**
      * Set a stream to use as input.
-     * 
+     *
      * @param inputStream
      *            the stream from which input will be read
      * @since Ant 1.6.3
@@ -277,7 +282,7 @@ public class Redirector {
     /**
      * File the output of the process is redirected to. If error is not
      * redirected, it too will appear in the output
-     * 
+     *
      * @param out
      *            the file to which output stream is written
      */
@@ -288,7 +293,7 @@ public class Redirector {
     /**
      * Files the output of the process is redirected to. If error is not
      * redirected, it too will appear in the output
-     * 
+     *
      * @param out
      *            the files to which output stream is written
      */
@@ -304,7 +309,7 @@ public class Redirector {
 
     /**
      * Set the output encoding.
-     * 
+     *
      * @param outputEncoding
      *            <code>String</code>.
      */
@@ -320,7 +325,7 @@ public class Redirector {
 
     /**
      * Set the error encoding.
-     * 
+     *
      * @param errorEncoding
      *            <code>String</code>.
      */
@@ -335,7 +340,7 @@ public class Redirector {
 
     /**
      * Set the input encoding.
-     * 
+     *
      * @param inputEncoding
      *            <code>String</code>.
      */
@@ -351,7 +356,7 @@ public class Redirector {
     /**
      * Controls whether error output of exec is logged. This is only useful when
      * output is being redirected and error output is desired in the Ant log
-     * 
+     *
      * @param logError
      *            if true the standard error is sent to the Ant log system and
      *            not sent to output.
@@ -365,8 +370,8 @@ public class Redirector {
     /**
      * This <code>Redirector</code>'s subordinate
      * <code>PropertyOutputStream</code>s will not set their respective
-     * properties <code>while (appendProperties && append)</code>.
-     * 
+     * properties <code>while (appendProperties &amp;&amp; append)</code>.
+     *
      * @param appendProperties
      *            whether to append properties.
      */
@@ -378,7 +383,7 @@ public class Redirector {
 
     /**
      * Set the file to which standard error is to be redirected.
-     * 
+     *
      * @param error
      *            the file to which error is to be written
      */
@@ -388,7 +393,7 @@ public class Redirector {
 
     /**
      * Set the files to which standard error is to be redirected.
-     * 
+     *
      * @param error
      *            the file to which error is to be written
      */
@@ -404,7 +409,7 @@ public class Redirector {
 
     /**
      * Property name whose value should be set to the output of the process.
-     * 
+     *
      * @param outputProperty
      *            the name of the property to be set with the task's output.
      */
@@ -421,7 +426,7 @@ public class Redirector {
     /**
      * Whether output should be appended to or overwrite an existing file.
      * Defaults to false.
-     * 
+     *
      * @param append
      *            if true output and error streams are appended to their
      *            respective files, if specified.
@@ -439,7 +444,7 @@ public class Redirector {
      * If true, (error and non-error) output will be "teed", redirected as
      * specified while being sent to Ant's logging mechanism as if no
      * redirection had taken place. Defaults to false.
-     * 
+     *
      * @param alwaysLog
      *            <code>boolean</code>
      * @since Ant 1.6.3
@@ -456,7 +461,7 @@ public class Redirector {
     /**
      * Whether output and error files should be created even when empty.
      * Defaults to true.
-     * 
+     *
      * @param createEmptyFiles
      *            <code>boolean</code>.
      */
@@ -471,7 +476,7 @@ public class Redirector {
 
     /**
      * Property name whose value should be set to the error of the process.
-     * 
+     *
      * @param errorProperty
      *            the name of the property to be set with the error output.
      */
@@ -487,11 +492,11 @@ public class Redirector {
 
     /**
      * Set the input <code>FilterChain</code>s.
-     * 
+     *
      * @param inputFilterChains
      *            <code>Vector</code> containing <code>FilterChain</code>.
      */
-    public void setInputFilterChains(Vector inputFilterChains) {
+    public void setInputFilterChains(Vector<FilterChain> inputFilterChains) {
         synchronized (inMutex) {
             this.inputFilterChains = inputFilterChains;
         }
@@ -499,11 +504,11 @@ public class Redirector {
 
     /**
      * Set the output <code>FilterChain</code>s.
-     * 
+     *
      * @param outputFilterChains
      *            <code>Vector</code> containing <code>FilterChain</code>.
      */
-    public void setOutputFilterChains(Vector outputFilterChains) {
+    public void setOutputFilterChains(Vector<FilterChain> outputFilterChains) {
         synchronized (outMutex) {
             this.outputFilterChains = outputFilterChains;
         }
@@ -511,24 +516,36 @@ public class Redirector {
 
     /**
      * Set the error <code>FilterChain</code>s.
-     * 
+     *
      * @param errorFilterChains
      *            <code>Vector</code> containing <code>FilterChain</code>.
      */
-    public void setErrorFilterChains(Vector errorFilterChains) {
+    public void setErrorFilterChains(Vector<FilterChain> errorFilterChains) {
         synchronized (errMutex) {
             this.errorFilterChains = errorFilterChains;
         }
     }
 
     /**
+     * Whether to consider the output created by the process binary.
+     *
+     * <p>Binary output will not be split into lines which may make
+     * error and normal output look mixed up when they get written to
+     * the same stream.</p>
+     * @since 1.9.4
+     */
+    public void setBinaryOutput(boolean b) {
+        outputIsBinary = b;
+    }
+
+    /**
      * Set a property from a ByteArrayOutputStream
-     * 
+     *
      * @param baos
      *            contains the property value.
      * @param propertyName
      *            the property name.
-     * 
+     *
      * @exception IOException
      *                if the value cannot be read form the stream.
      */
@@ -715,13 +732,17 @@ public class Redirector {
                     .toString();
             errorStream = foldFiles(error, logHead, Project.MSG_VERBOSE,
                     appendErr, createEmptyFilesErr);
-        } else if (!(logError || outputStream == null)) {
+        } else if (!(logError || outputStream == null) && errorProperty == null) {
             long funnelTimeout = 0L;
             OutputStreamFunneler funneler = new OutputStreamFunneler(
                     outputStream, funnelTimeout);
             try {
                 outputStream = funneler.getFunnelInstance();
                 errorStream = funneler.getFunnelInstance();
+                if (!outputIsBinary) {
+                    outputStream = new LineOrientedOutputStreamRedirector(outputStream);
+                    errorStream = new LineOrientedOutputStreamRedirector(errorStream);
+                }
             } catch (IOException eyeOhEx) {
                 throw new BuildException(
                         "error splitting output/error streams", eyeOhEx);
@@ -744,10 +765,10 @@ public class Redirector {
 
     /**
      * Create the StreamHandler to use with our Execute instance.
-     * 
+     *
      * @return the execute stream handler to manage the input, output and error
      *         streams.
-     * 
+     *
      * @throws BuildException
      *             if the execute stream handler cannot be created.
      */
@@ -760,7 +781,7 @@ public class Redirector {
 
     /**
      * Pass output sent to System.out to specified output.
-     * 
+     *
      * @param output
      *            the data to be output
      */
@@ -775,16 +796,16 @@ public class Redirector {
 
     /**
      * Handle an input request
-     * 
+     *
      * @param buffer
      *            the buffer into which data is to be read.
      * @param offset
      *            the offset into the buffer at which data is stored.
      * @param length
      *            the amount of data to read
-     * 
+     *
      * @return the number of bytes read
-     * 
+     *
      * @exception IOException
      *                if the data cannot be read
      */
@@ -802,7 +823,7 @@ public class Redirector {
 
     /**
      * Process data due to a flush operation.
-     * 
+     *
      * @param output
      *            the data being flushed.
      */
@@ -818,7 +839,7 @@ public class Redirector {
 
     /**
      * Process error output
-     * 
+     *
      * @param output
      *            the error output data.
      */
@@ -833,7 +854,7 @@ public class Redirector {
 
     /**
      * Handle a flush operation on the error stream
-     * 
+     *
      * @param output
      *            the error information being flushed.
      */
@@ -849,7 +870,7 @@ public class Redirector {
 
     /**
      * Get the output stream for the redirector
-     * 
+     *
      * @return the redirector's output stream or null if no output has been
      *         configured
      */
@@ -861,7 +882,7 @@ public class Redirector {
 
     /**
      * Get the error stream for the redirector
-     * 
+     *
      * @return the redirector's error stream or null if no output has been
      *         configured
      */
@@ -873,7 +894,7 @@ public class Redirector {
 
     /**
      * Get the input stream for the redirector
-     * 
+     *
      * @return the redirector's input stream or null if no output has been
      *         configured
      */
@@ -885,10 +906,10 @@ public class Redirector {
 
     /**
      * Complete redirection.
-     * 
+     *
      * This operation will close any streams and create any specified property
      * values.
-     * 
+     *
      * @throws IOException
      *             if the output properties cannot be read from their output
      *             streams.

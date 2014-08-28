@@ -19,14 +19,17 @@
 package org.apache.tools.zip;
 
 import java.io.File;
+import java.io.InputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.zip.CRC32;
-import junit.framework.TestCase;
+import org.junit.Test;
 
-public class UTF8ZipFilesTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+public class UTF8ZipFilesTest {
 
     private static final String UTF_8 = "utf-8";
     private static final String CP437 = "cp437";
@@ -35,55 +38,64 @@ public class UTF8ZipFilesTest extends TestCase {
     private static final String EURO_FOR_DOLLAR_TXT = "\u20AC_for_Dollar.txt";
     private static final String OIL_BARREL_TXT = "\u00D6lf\u00E4sser.txt";
 
+    @Test
     public void testUtf8FileRoundtripExplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(UTF_8, true, true);
     }
 
+    @Test
     public void testUtf8FileRoundtripNoEFSExplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(UTF_8, false, true);
     }
 
+    @Test
     public void testCP437FileRoundtripExplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(CP437, false, true);
     }
 
+    @Test
     public void testASCIIFileRoundtripExplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(US_ASCII, false, true);
     }
 
+    @Test
     public void testUtf8FileRoundtripImplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(UTF_8, true, false);
     }
 
+    @Test
     public void testUtf8FileRoundtripNoEFSImplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(UTF_8, false, false);
     }
 
+    @Test
     public void testCP437FileRoundtripImplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(CP437, false, false);
     }
 
+    @Test
     public void testASCIIFileRoundtripImplicitUnicodeExtra()
         throws IOException {
         testFileRoundtrip(US_ASCII, false, false);
     }
 
+    @Test
     public void testZipFileReadsUnicodeFields() throws IOException {
         File file = File.createTempFile("unicode-test", ".zip");
         ZipFile zf = null;
         try {
             createTestFile(file, US_ASCII, false, true);
             zf = new ZipFile(file, US_ASCII, true);
-            assertNotNull(zf.getEntry(ASCII_TXT));
-            assertNotNull(zf.getEntry(EURO_FOR_DOLLAR_TXT));
-            assertNotNull(zf.getEntry(OIL_BARREL_TXT));
+            assertCanRead(zf, ASCII_TXT);
+            assertCanRead(zf, EURO_FOR_DOLLAR_TXT);
+            assertCanRead(zf, OIL_BARREL_TXT);
         } finally {
             ZipFile.closeQuietly(zf);
             if (file.exists()) {
@@ -110,7 +122,7 @@ public class UTF8ZipFilesTest extends TestCase {
     private static void createTestFile(File file, String encoding,
                                        boolean withEFS,
                                        boolean withExplicitUnicodeExtra)
-        throws UnsupportedEncodingException, IOException {
+        throws IOException {
 
         ZipEncoding zipEncoding = ZipEncodingHelper.getZipEncoding(encoding);
 
@@ -229,6 +241,18 @@ public class UTF8ZipFilesTest extends TestCase {
             assertEquals(crc.getValue(), ucpf.getNameCRC32());
             assertEquals(expectedName, new String(ucpf.getUnicodeName(),
                                                   UTF_8));
+        }
+    }
+
+    private static void assertCanRead(ZipFile zf, String fileName) throws IOException {
+        ZipEntry entry = zf.getEntry(fileName);
+        assertNotNull("Entry " + fileName + " doesn't exist", entry);
+        InputStream is = zf.getInputStream(entry);
+        assertNotNull("InputStream is null", is);
+        try {
+            is.read();
+        } finally {
+            is.close();
         }
     }
 

@@ -58,7 +58,7 @@ public class TokenFilter extends BaseFilterReader
 
 
     /** string filters */
-    private Vector    filters   = new Vector();
+    private Vector<Filter>    filters   = new Vector<Filter>();
     /** the tokenizer to use on the input stream */
     private Tokenizer tokenizer = null;
     /** the output token termination */
@@ -109,8 +109,8 @@ public class TokenFilter extends BaseFilterReader
             if (line == null) {
                 return -1;
             }
-            for (Enumeration e = filters.elements(); e.hasMoreElements();) {
-                Filter filter = (Filter) e.nextElement();
+            for (Enumeration<Filter> e = filters.elements(); e.hasMoreElements();) {
+                Filter filter = e.nextElement();
                 line = filter.filter(line);
                 if (line == null) {
                     break;
@@ -365,7 +365,7 @@ public class TokenFilter extends BaseFilterReader
 
         /**
          * Filter a string 'line' replacing from with to
-         * (C&P from the Replace task)
+         * (Copy&amp;Paste from the Replace task)
          * @param line the string to be filtered
          * @return the filtered line
          */
@@ -684,7 +684,7 @@ public class TokenFilter extends BaseFilterReader
      * xml does not do "c" like interpretation of strings.
      * i.e. \n\r\t etc.
      * this method processes \n, \r, \t, \f, \\
-     * also subs \s -> " \n\r\t\f"
+     * also subs \s with " \n\r\t\f"
      * a trailing '\' will be ignored
      *
      * @param input raw string with possible embedded '\'s
@@ -696,12 +696,12 @@ public class TokenFilter extends BaseFilterReader
 
     /**
      * convert regex option flag characters to regex options
-     * <dl>
+     * <ul>
      *   <li>g -  Regexp.REPLACE_ALL</li>
      *   <li>i -  Regexp.MATCH_CASE_INSENSITIVE</li>
      *   <li>m -  Regexp.MATCH_MULTILINE</li>
      *   <li>s -  Regexp.MATCH_SINGLELINE</li>
-     * </dl>
+     * </ul>
      * @param flags the string containing the flags
      * @return the Regexp option bits
      */

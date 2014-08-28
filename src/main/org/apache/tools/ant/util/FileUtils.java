@@ -25,9 +25,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.Writer;
-import java.net.MalformedURLException;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.Channel;
@@ -138,7 +138,7 @@ public class FileUtils {
      *      formed.
      */
     public URL getFileURL(File file) throws MalformedURLException {
-        return new URL(toURI(file.getAbsolutePath()));
+        return new URL(file.toURI().toASCIIString());
     }
 
     /**
@@ -637,7 +637,7 @@ public class FileUtils {
         int len = filename.length();
         return (c == sep && (len == 1 || filename.charAt(1) != sep))
                 || (Character.isLetter(c) && len > 1
-                && filename.indexOf(':') == 1
+                && filename.charAt(1) == ':'
                 && (len == 2 || filename.charAt(2) != sep));
     }
 
@@ -753,7 +753,8 @@ public class FileUtils {
             }
         }
         StringBuffer sb = new StringBuffer();
-        for (int i = 0; i < s.size(); i++) {
+        final int size = s.size();
+        for (int i = 0; i < size; i++) {
             if (i > 1) {
                 // not before the filesystem root and not after it, since root
                 // already contains one
@@ -1208,7 +1209,7 @@ public class FileUtils {
      * @since Ant 1.6
      */
     public String toURI(String path) {
-        return new File(path).getAbsoluteFile().toURI().toASCIIString();
+        return new File(path).toURI().toASCIIString();
     }
 
     /**
@@ -1307,7 +1308,8 @@ public class FileUtils {
             throw new IOException("Failed to delete " + to + " while trying to rename " + from);
         }
         File parent = to.getParentFile();
-        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+        if (parent != null && !parent.isDirectory()
+            && !(parent.mkdirs() || parent.isDirectory())) {
             throw new IOException("Failed to create directory " + parent
                                   + " while trying to rename " + from);
         }
@@ -1561,8 +1563,19 @@ public class FileUtils {
      * @since Ant 1.8.0
      */
     public boolean tryHardToDelete(File f) {
+        return tryHardToDelete(f, ON_WINDOWS);
+    }
+
+    /**
+     * If delete does not work, call System.gc() if asked to, wait a
+     * little and try again.
+     *
+     * @return whether deletion was successful
+     * @since Ant 1.8.3
+     */
+    public boolean tryHardToDelete(File f, boolean runGC) {
         if (!f.delete()) {
-            if (ON_WINDOWS) {
+            if (runGC) {
                 System.gc();
             }
             try {
@@ -1574,7 +1587,6 @@ public class FileUtils {
         }
         return true;
     }
-
 
     /**
      * Calculates the relative path between two files.

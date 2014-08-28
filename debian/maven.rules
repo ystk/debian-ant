@@ -1,4 +1,5 @@
 junit junit jar s/3\..*/3.x/
+junit junit jar s/4\..*/4.x/
 antlr antlr jar s/2\..*/2.x/
 s/bcel/org.apache.bcel/ bcel jar s/5\..*/5.x/
 commons-logging s/commons-logging-api/commons-logging/ * s/.*/debian/

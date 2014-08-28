@@ -1,7 +1,4 @@
-docs/manual
-docs/images
-docs/*.html
-docs/*.css
+manual
 NOTICE
 README
 WHATSNEW

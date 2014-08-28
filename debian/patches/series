@@ -1,6 +1,6 @@
-0001-detect-classpath-based-JVM.patch
 0002-do-not-build-test-jars.patch
 0003-add-Xerces-from-Debian-s-path.patch
 0005-add-gjdoc-task.patch
 0006-fix-ANT_HOME-path.patch
 0007-use-build.classpath.patch
+0008-junit4-replace-assumeFalse.patch

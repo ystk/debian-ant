@@ -62,7 +62,14 @@ public class JUnitTest extends BaseTest implements Cloneable {
     // part of the result. So we'd better derive a new class from TestResult
     // and deal with it. (SB)
     private long runs, failures, errors;
+    /**
+    @since Ant 1.9.0
+    */
+    private long skips;
+
     private long runTime;
+
+    private int antThreadID;
 
     // Snapshot of the system properties
     private Properties props = null;
@@ -88,9 +95,9 @@ public class JUnitTest extends BaseTest implements Cloneable {
      */
     public JUnitTest(String name, boolean haltOnError, boolean haltOnFailure,
             boolean filtertrace) {
-        this(name, haltOnError, haltOnFailure, filtertrace, null);
-    }    
-    
+        this(name, haltOnError, haltOnFailure, filtertrace, null, 0);
+    }
+
     /**
      * Constructor with options.
      * @param name the name of the test.
@@ -102,12 +109,28 @@ public class JUnitTest extends BaseTest implements Cloneable {
      */
     public JUnitTest(String name, boolean haltOnError, boolean haltOnFailure,
                      boolean filtertrace, String[] methods) {
+        this(name, haltOnError, haltOnFailure, filtertrace, methods, 0);    
+    }
+
+    /**
+     * Constructor with options.
+     * @param name the name of the test.
+     * @param haltOnError if true halt the tests if there is an error.
+     * @param haltOnFailure if true halt the tests if there is a failure.
+     * @param filtertrace if true filter stack traces.
+     * @param methods if non-null run only these test methods
+     * @param thread Ant thread ID in which test is currently running
+     * @since 1.9.4
+     */
+    public JUnitTest(String name, boolean haltOnError, boolean haltOnFailure,
+                     boolean filtertrace, String[] methods, int thread) {
         this.name  = name;
         this.haltOnError = haltOnError;
         this.haltOnFail = haltOnFailure;
         this.filtertrace = filtertrace;
         this.methodsSpecified = methods != null;
         this.methods = methodsSpecified ? (String[]) methods.clone() : null;
+        this.antThreadID = thread;
     }
 
     /**
@@ -141,6 +164,17 @@ public class JUnitTest extends BaseTest implements Cloneable {
      */
     public void setName(String value) {
         name = value;
+    }
+
+    /**
+     * Set the thread id
+     * @param thread the Ant id of the thread running this test
+	 * (this is not the system process or thread id)
+     * (this will be 0 in single-threaded mode).
+     * @since Ant 1.9.4
+     */
+    public void setThread(int thread) {
+        this.antThreadID = thread;
     }
 
     /**
@@ -343,6 +377,14 @@ public class JUnitTest extends BaseTest implements Cloneable {
     }
 
     /**
+     * Get the Ant id of the thread running the test.
+     * @return the thread id
+     */
+    public int getThread() {
+        return antThreadID;
+    }
+
+    /**
      * Get the name of the output file
      *
      * @return the name of the output file.
@@ -352,15 +394,30 @@ public class JUnitTest extends BaseTest implements Cloneable {
     }
 
     /**
-     * Set the number of runs, failures and errors.
+     * Set the number of runs, failures, errors, and skipped tests.
      * @param runs     the number of runs.
      * @param failures the number of failures.
      * @param errors   the number of errors.
+     * Kept for backward compatibility with Ant 1.8.4
      */
     public void setCounts(long runs, long failures, long errors) {
         this.runs = runs;
         this.failures = failures;
         this.errors = errors;
+    }
+    /**
+     * Set the number of runs, failures, errors, and skipped tests.
+     * @param runs     the number of runs.
+     * @param failures the number of failures.
+     * @param errors   the number of errors.
+     * @param skips   the number of skipped tests.
+     * @since Ant 1.9.0
+     */
+    public void setCounts(long runs, long failures, long errors, long skips) {
+        this.runs = runs;
+        this.failures = failures;
+        this.errors = errors;
+        this.skips = skips;
     }
 
     /**
@@ -393,6 +450,14 @@ public class JUnitTest extends BaseTest implements Cloneable {
      */
     public long errorCount() {
         return errors;
+    }
+
+    /**
+     * Get the number of skipped tests.
+     * @return the number of skipped tests.
+     */
+    public long skipCount() {
+        return skips;
     }
 
     /**

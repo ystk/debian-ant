@@ -1,3 +1,84 @@
+ant (1.9.4-1) unstable; urgency=medium
+
+  * New upstream release
+    - Refreshed the patches
+    - Removed the patch for #735786 (Fixed upstream)
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Fri, 09 May 2014 11:46:04 +0200
+
+ant (1.9.3-2) unstable; urgency=medium
+
+  * Team upload
+  * debian/patches
+    - add 0009-fix-NullPointerException-when-no-destdir-was-set.patch:
+      pick up upstream fix for FTBFS <Closes: #735786>
+
+ -- Hideki Yamane <henrich@debian.org>  Sun, 16 Feb 2014 21:59:46 +0900
+
+ant (1.9.3-1) unstable; urgency=medium
+
+  * New upstream release
+  * Standards-Version updated to 3.9.5 (no changes)
+  * Switch to debhelper level 9
+  * Updated the description of 0008-junit4-replace-assumeFalse.patch
+  * debian/rules:
+    - Improved the clean target to allow rebuilds
+    - Remove the version's -SNAPSHOT suffix by setting the version explicitly
+      when calling mh_installjar instead of altering the original pom files
+  * Use XZ compression for the upstream tarball
+  * Documented the -silent flag in the man page (new in Ant 1.9.0)
+  * debian/copyright: Updated to the Copyright Format 1.0
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Mon, 06 Jan 2014 23:33:38 +0100
+
+ant (1.9.2-1) unstable; urgency=low
+
+  * New upstream release
+  * Use canonical URLs for the Vcs-* fields
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Sun, 14 Jul 2013 14:24:45 +0200
+
+ant (1.9.1-2) unstable; urgency=low
+
+  * Team upload.
+  * d/maven.rules: Ensure that junit4 dependencies are mapped to 4.x
+    junit artefact (Closes: #713381).
+
+ -- James Page <james.page@ubuntu.com>  Tue, 02 Jul 2013 12:03:48 +0100
+
+ant (1.9.1-1) unstable; urgency=low
+
+  * New upstream release
+    - Refreshed the patches
+    - Removed patch 0001-detect-classpath-based-JVM (merged upstream)
+  * Enabled hardening for the -gcj packages
+  * Upload to unstable
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Wed, 15 May 2013 16:19:56 +0200
+
+ant (1.9.0-1) experimental; urgency=low
+
+  * Team upload.
+
+  [ Ludovic Claude ]
+  * Add version constraint on libxml-commons-resolver1.1-java to
+    secure backport of Ant on Squeeze.
+
+  [ Tony Mancill ]
+  * Remove Michael Koch Uploaders (Closes: #653982)
+  * Bump Standards-Version to 3.9.4.
+
+  [ Emmanuel Bourg ]
+  * New upstream release.
+    - Refreshed the patches
+    - Upgrade source and target version to 1.5
+    - Adapted the build to the new documentation path in the upstream source
+    - Added a patch to build the package with junit4 4.10
+  * Removed the dependency on java2-runtime-headless
+  * Add java7-runtime-headless to list of satisfying JRE dependencies
+
+ -- tony mancill <tmancill@debian.org>  Wed, 27 Mar 2013 20:29:34 -0700
+
 ant (1.8.2-4) unstable; urgency=low
 
   * Team upload.

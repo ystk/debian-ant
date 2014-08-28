@@ -207,7 +207,8 @@ public class LayoutPreservingProperties extends Properties {
             (LayoutPreservingProperties) super.clone();
         dolly.keyedPairLines = (HashMap) this.keyedPairLines.clone();
         dolly.logicalLines = (ArrayList) this.logicalLines.clone();
-        for (int j = 0; j < dolly.logicalLines.size(); j++) {
+        final int size = dolly.logicalLines.size();
+        for (int j = 0; j < size; j++) {
             LogicalLine line = (LogicalLine) dolly.logicalLines.get(j);
             if (line instanceof Pair) {
                 Pair p = (Pair) line;
@@ -567,12 +568,8 @@ public class LayoutPreservingProperties extends Properties {
      * @return the unicode escape sequence
      */
     private String escapeUnicode(char ch) {
-        StringBuffer buffy = new StringBuffer("\\u");
-        String hex = Integer.toHexString((int)ch);
-        buffy.append("0000".substring(4-hex.length()));
-        buffy.append(hex);
-        return buffy.toString();
-    }
+        return "\\" + UnicodeUtil.EscapeUnicode(ch);
+        }
 
     /**
      * Remove the comments in the leading up the {@link logicalLines}
