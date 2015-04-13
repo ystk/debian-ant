@@ -26,28 +26,18 @@ export BOOTJAVAC_OPTS=-source 1.5 -target 1.5 -nowarn
 # needed for building with bootstrap ant
 export ANT_HOME := bootstrap
 
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-    export ANT_OPTS=-Dcompile.debug=true -Dcompile.optimize=false
-else
-    export ANT_OPTS=-Dcompile.debug=true -Dcompile.optimize=true
-endif
-
 PACKAGE              := $(DEB_SOURCE_PACKAGE)
 VERSION              := $(DEB_UPSTREAM_VERSION)
 JAR_PATH := /usr/share/java
-CLASSPATH := ${JAR_PATH}/activation.jar:${JAR_PATH}/antlr.jar:${JAR_PATH}/bcel.jar:${JAR_PATH}/bsf.jar:${JAR_PATH}/commons-logging.jar:${JAR_PATH}/gnumail.jar:${JAR_PATH}/inetlib.jar:${JAR_PATH}/jdepend.jar:${JAR_PATH}/junit.jar:${JAR_PATH}/log4j-1.2.jar:${JAR_PATH}/oro.jar:${JAR_PATH}/regexp.jar:${JAR_PATH}/xalan2.jar:${JAR_PATH}/xml-resolver-1.2.jar:${JAR_PATH}/commons-net.jar:${JAR_PATH}/jsch.jar:${JAR_PATH}/junit4.jar
+CLASSPATH := ${JAR_PATH}/activation.jar:${JAR_PATH}/antlr.jar:${JAR_PATH}/bcel.jar:${JAR_PATH}/bsf.jar:${JAR_PATH}/commons-logging.jar:${JAR_PATH}/javax.mail.jar:${JAR_PATH}/inetlib.jar:${JAR_PATH}/jdepend.jar:${JAR_PATH}/junit.jar:${JAR_PATH}/log4j-1.2.jar:${JAR_PATH}/oro.jar:${JAR_PATH}/regexp.jar:${JAR_PATH}/xalan2.jar:${JAR_PATH}/xml-resolver-1.2.jar:${JAR_PATH}/commons-net.jar:${JAR_PATH}/jsch.jar:${JAR_PATH}/junit4.jar
 
 build-ant: stamp-build-ant
 stamp-build-ant:
 	# doing bootstrapping
 	install -d bootstrap/lib
-	ln -sf /usr/share/java/xml-apis.jar $(DEB_BUILDDIR)/bootstrap/lib/xml-apis.jar
-	ln -sf /usr/share/java/xercesImpl.jar $(DEB_BUILDDIR)/bootstrap/lib/xercesImpl.jar
 	/bin/sh bootstrap.sh
 	# the rest
 	/bin/sh bootstrap/bin/ant -Dant.build.javac.source=1.5 -Dant.build.javac.target=1.5 -Dbuild.classpath=${CLASSPATH} -propertyfile debian/ant.properties jars test-jar
-	ln -sf /usr/share/java/xml-apis.jar $(DEB_BUILDDIR)/lib/xml-apis.jar
-	ln -sf /usr/share/java/xercesImpl.jar $(DEB_BUILDDIR)/lib/xercesImpl.jar
 	touch stamp-build-ant
 
 build-ant-doc: stamp-build-ant-doc

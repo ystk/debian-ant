@@ -18,18 +18,16 @@ Build-Depends: antlr,
                libbsf-java (>= 2.3.0rc1),
                libcommons-logging-java,
                libcommons-net-java,
-               libgnumail-java,
-               libjaxp1.3-java,
+               libmail-java,
                libjdepend-java,
                libjsch-java,
                liblog4j1.2-java,
                liboro-java,
                libregexp-java,
                libxalan2-java (>= 2.4.0),
-               libxerces2-java,
                libxml-commons-resolver1.1-java (>= 1.2-7~),
                maven-repo-helper (>> 1.0)
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 Vcs-Svn: svn://anonscm.debian.org/pkg-java/trunk/ant
 Vcs-Browser: http://anonscm.debian.org/viewvc/pkg-java/trunk/ant/
 Homepage: http://ant.apache.org
@@ -37,7 +35,6 @@ Homepage: http://ant.apache.org
 Package: ant
 Architecture: all
 Depends: default-jre-headless | java5-runtime-headless | java6-runtime-headless | java7-runtime-headless,
-         libxerces2-java,
          ${misc:Depends}
 Recommends: ant-optional
 Suggests: ant-doc, ant-gcj, default-jdk | java-compiler | java-sdk
@@ -70,7 +67,7 @@ Suggests: ant-optional-gcj,
           libbsf-java,
           libcommons-logging-java,
           libcommons-net-java,
-          libgnumail-java,
+          libmail-java,
           libjaxp1.3-java,
           libjdepend-java,
           libjsch-java,

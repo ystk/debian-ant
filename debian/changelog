@@ -1,3 +1,21 @@
+ant (1.9.4-3) unstable; urgency=medium
+
+  * Removed the patch adding Xerces to the Ant classpath
+    (Closes: #552032, #764376, LP: #324899, LP: #490831, LP: #876091)
+  * Removed the dependency on libxerces2-java and libjaxp1.3-java
+  * debian/rules: Removed the unused compile.debug and compile.optimize
+    properties
+  * Refreshed the man page for build.xml
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Wed, 08 Oct 2014 00:06:55 +0200
+
+ant (1.9.4-2) unstable; urgency=medium
+
+  * Depend on libmail-java instead of libgnumail-java
+  * Standards-Version updated to 3.9.6 (no changes)
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Tue, 30 Sep 2014 09:15:39 +0200
+
 ant (1.9.4-1) unstable; urgency=medium
 
   * New upstream release
