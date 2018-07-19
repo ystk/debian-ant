@@ -3,3 +3,4 @@
 0006-fix-ANT_HOME-path.patch
 0007-use-build.classpath.patch
 0008-junit4-replace-assumeFalse.patch
+CVE-2018-10886.patch

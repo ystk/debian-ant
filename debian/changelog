@@ -1,3 +1,13 @@
+ant (1.9.4-3+deb8u1) jessie-security; urgency=high
+
+  * Non-maintainer upload by the Debian LTS Team
+  * Fix CVE-2018-10886: unzip and untar targets allow the extraction of
+    files outside the target directory. A crafted zip or tar file
+    submitted to an Ant build could create or overwrite arbitrary files
+    with the privileges of the user running Ant
+
+ -- Abhijith PA <abhijith@disroot.org>  Wed, 18 Jul 2018 16:33:03 +0530
+
 ant (1.9.4-3) unstable; urgency=medium
 
   * Removed the patch adding Xerces to the Ant classpath
