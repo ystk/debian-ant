@@ -1,3 +1,12 @@
+ant (1.9.4-3+deb8u2) jessie-security; urgency=high
+
+  * Non-maintainer upload by the Debian LTS Team.
+  * Fix TEMP-0904191-9063D5: Incomplete fix for CVE-2018-10886
+  * Add NEWS.Debian file to document possibly breaking changes
+    (Closes: #904191)
+
+ -- Abhijith PA <abhijith@disroot.org>  Thu, 02 Aug 2018 20:31:29 +0530
+
 ant (1.9.4-3+deb8u1) jessie-security; urgency=high
 
   * Non-maintainer upload by the Debian LTS Team

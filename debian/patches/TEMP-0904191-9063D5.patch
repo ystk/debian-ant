@@ -1,0 +1,66 @@
+Description: TEMP-0904191-9063D5
+ Incomplete fix to CVE-2018-10886. Add another isLeadingPath method to
+ resolves symlinks. Also consider symlinks when expanding archives 
+ and checking entries. 
+
+Author: Abhijith PA <abhijith@disroot.org>
+Origin: https://github.com/apache/ant/commit/5a8c37b271677587046bfd0fea18c1675d5a6300
+        https://github.com/apache/ant/commit/6a41d62cb9ab4e640b72cb4de42a6c211dea645d
+Bug: https://bz.apache.org/bugzilla/show_bug.cgi?id=62502
+Bug-Debian: https://bugs.debian.org/904191
+Last-Update: 2018-08-02
+
+--- ant-1.9.4.orig/src/main/org/apache/tools/ant/taskdefs/Expand.java
++++ ant-1.9.4/src/main/org/apache/tools/ant/taskdefs/Expand.java
+@@ -317,9 +317,9 @@ public class Expand extends Task {
+             mappedNames = new String[] {entryName};
+         }
+         File f = fileUtils.resolveFile(dir, mappedNames[0]);
+-        if (!allowedOutsideOfDest && !fileUtils.isLeadingPath(dir, f)) {
+-            log("skipping " + entryName + " as its target " + f + " is outside of "
+-                + dir + ".", Project.MSG_VERBOSE);
++        if (!allowedOutsideOfDest && !fileUtils.isLeadingPath(dir, f, true)) {
++            log("skipping " + entryName + " as its target " + f.getCanonicalPath()
++                + " is outside of " + dir.getCanonicalPath() + ".", Project.MSG_VERBOSE);
+                 return;
+         }
+ 
+--- ant-1.9.4.orig/src/main/org/apache/tools/ant/util/FileUtils.java
++++ ant-1.9.4/src/main/org/apache/tools/ant/util/FileUtils.java
+@@ -1191,6 +1191,36 @@ public class FileUtils {
+     }
+ 
+     /**
++     * Learn whether one path "leads" another.
++     *
++     * @param leading The leading path, must not be null, must be absolute.
++     * @param path The path to check, must not be null, must be absolute.
++     * @param resolveSymlinks whether symbolic links shall be resolved
++     * prior to comparing the paths.
++     * @return true if path starts with leading; false otherwise.
++     * @since Ant 1.9.4-3+deb8u2
++     * @throws IOException if resolveSymlinks is true and invoking
++     * getCanonicaPath on either argument throws an exception
++     */
++    public boolean isLeadingPath(File leading, File path, boolean resolveSymlinks)
++        throws IOException {
++        if (!resolveSymlinks) {
++            return isLeadingPath(leading, path);
++        }
++        String l = leading.getCanonicalPath();
++        String p = path.getCanonicalPath();
++        if (l.equals(p)) {
++            return true;
++        }
++        // ensure that l ends with a /
++        // so we never think /foo was a parent directory of /foobar
++        if (!l.endsWith(File.separator)) {
++            l += File.separator;
++        }
++        return p.startsWith(l);
++    }
++
++    /**
+      * Constructs a <code>file:</code> URI that represents the
+      * external form of the given pathname.
+      *
